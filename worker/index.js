@@ -2,13 +2,16 @@ import { validateRequest, decryptRequest } from './utils/validate.js';
 import { respondSuccess, respondError, respondEncrypted } from './utils/respond.js';
 import handlePing from './commands/ping.js';
 import handleAi from './commands/ai.js';
-import handleGh from './commands/gh.js';
+import handleGh, { ghOpen, ghPush, ghPull } from './commands/gh.js';
 import handleSys from './commands/sys.js';
 
 const COMMAND_HANDLERS = {
   ping: handlePing,
   ai: handleAi,
   gh: handleGh,
+  'warnetech-gh-open': ghOpen,
+  'warnetech-gh-push': ghPush,
+  'warnetech-gh-pull': ghPull,
   sys: handleSys,
 };
 
