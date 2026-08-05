@@ -1,60 +1,46 @@
-// Handles GitHub operations (open, push, pull)
-
 async function handleGh(args, env) {
   if (!args || args.length === 0) {
-    throw new Error('GitHub action required: open|push|pull');
+    throw new Error('gh command requires a subcommand: open, push, or pull');
   }
 
-  const subcommand = args[0];
-  const subargs = args.slice(1);
+  const [subcommand, ...subargs] = Array.isArray(args) ? args : [args];
 
   switch (subcommand) {
-    case 'open':
-      return handleGhOpen(subargs[0]);
-    case 'push':
-      return handleGhPush(subargs[0]);
-    case 'pull':
-      return handleGhPull();
+    case 'open': {
+      const repo = subargs[0] || 'claude-command-cli';
+      const url = `https://claude.ai/new?repo=https://github.com/tewartech-node/${repo}`;
+      return {
+        action: 'open_claude',
+        url,
+      };
+    }
+
+    case 'push': {
+      const message = subargs[0] || 'update';
+      return {
+        action: 'push_instructions',
+        instructions: [
+          'Run the following in Termux:',
+          'git add .',
+          `git commit -m "${message}"`,
+          'git push origin main',
+        ],
+      };
+    }
+
+    case 'pull': {
+      return {
+        action: 'pull_instructions',
+        instructions: [
+          'Run the following in Termux:',
+          'git pull',
+        ],
+      };
+    }
+
     default:
-      throw new Error(`Unknown action: ${subcommand}`);
+      throw new Error(`Unknown gh subcommand: ${subcommand}`);
   }
-}
-
-function handleGhOpen(repo) {
-  if (!repo) throw new Error('Repository name required');
-
-  // Validate repo format (owner/name)
-  if (!repo.includes('/')) {
-    throw new Error('Repository format should be: owner/name');
-  }
-
-  const repoUrl = `https://github.com/${repo}`;
-  const claudeUrl = `https://claude.ai/new?repo=${encodeURIComponent(repoUrl)}`;
-
-  return {
-    repo,
-    url: repoUrl,
-    claude_url: claudeUrl,
-  };
-}
-
-function handleGhPush(message) {
-  if (!message) throw new Error('Commit message required');
-
-  // Git operations should be performed by CLI using git CLI
-  return {
-    message,
-    status: 'NOT_IMPLEMENTED',
-    note: 'Git operations should be performed by CLI, not Worker',
-  };
-}
-
-function handleGhPull() {
-  // Git operations should be performed by CLI using git CLI
-  return {
-    status: 'NOT_IMPLEMENTED',
-    note: 'Git operations should be performed by CLI, not Worker',
-  };
 }
 
 export default handleGh;
