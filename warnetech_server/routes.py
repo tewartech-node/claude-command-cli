@@ -17,6 +17,7 @@ from .control_plane_client import ControlPlaneClient
 from .database import ServerDatabase
 from .middleware import Request, Response
 from .security import ValidationError, validate_json_body, validate_string
+from .security_intel_integration import SecurityIntelIntegration
 from .test_harness import TestHarness
 from .utils import now_iso
 
@@ -29,6 +30,7 @@ class ServerDependencies:
     cli: CLIIntegration
     ai: Optional[AIIntegration]
     test_harness: TestHarness
+    security_intel: Optional[SecurityIntelIntegration]
 
 
 RouteHandler = Callable[[Request, ServerDependencies], Response]

@@ -46,11 +46,18 @@ class ExternalIntelSource:
 
 
 def _default_intel_sources() -> tuple[ExternalIntelSource, ...]:
+    """Named to match warnetech_connectors.config.ConnectorsConfig's
+    endpoints one-for-one, since rank_intel_relevance() in security_intel.py
+    looks up a record's `source` against these names for its source_bonus.
+    """
     return (
         ExternalIntelSource(name="malwarebytes", endpoint=os.environ.get("MALWAREBYTES_ENDPOINT", "")),
         ExternalIntelSource(name="have_i_been_pwned", endpoint=os.environ.get("HIBP_ENDPOINT", "")),
         ExternalIntelSource(name="norton", endpoint=os.environ.get("NORTON_ENDPOINT", "")),
         ExternalIntelSource(name="mcafee", endpoint=os.environ.get("MCAFEE_ENDPOINT", "")),
+        ExternalIntelSource(name="nvd", endpoint=os.environ.get("NVD_ENDPOINT", "")),
+        ExternalIntelSource(name="primary_log_aggregator", endpoint=os.environ.get("LOG_AGGREGATOR_ENDPOINT", "")),
+        ExternalIntelSource(name="primary_siem_soar", endpoint=os.environ.get("SIEM_SOAR_ENDPOINT", "")),
     )
 
 

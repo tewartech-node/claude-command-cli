@@ -60,6 +60,22 @@ class SecurityConnectors:
 
 
 @dataclass(frozen=True)
+class ConnectorCategoryToggles:
+    """Enables or disables whole connector categories independent of
+    whether individual endpoints are configured — see
+    warnetech_connectors.config.ConnectorsConfig for the endpoints
+    themselves. A category can be off here even with an endpoint set
+    (e.g. to pause SIEM/SOAR pushes without unsetting its URL).
+    """
+
+    intel_feeds_enabled: bool = field(default_factory=lambda: os.environ.get("WARNETECH_INTEL_FEEDS_ENABLED", "true").lower() == "true")
+    reputation_services_enabled: bool = field(default_factory=lambda: os.environ.get("WARNETECH_REPUTATION_SERVICES_ENABLED", "true").lower() == "true")
+    vuln_databases_enabled: bool = field(default_factory=lambda: os.environ.get("WARNETECH_VULN_DATABASES_ENABLED", "true").lower() == "true")
+    log_aggregators_enabled: bool = field(default_factory=lambda: os.environ.get("WARNETECH_LOG_AGGREGATORS_ENABLED", "false").lower() == "true")
+    siem_soar_enabled: bool = field(default_factory=lambda: os.environ.get("WARNETECH_SIEM_SOAR_ENABLED", "false").lower() == "true")
+
+
+@dataclass(frozen=True)
 class RateLimitSettings:
     requests_per_minute: int = 120
     burst: int = 20
@@ -81,6 +97,7 @@ class ServerConfig:
     compression: CompressionDefaults = field(default_factory=CompressionDefaults)
     test_harness: TestHarnessSettings = field(default_factory=TestHarnessSettings)
     security_connectors: SecurityConnectors = field(default_factory=SecurityConnectors)
+    connector_toggles: ConnectorCategoryToggles = field(default_factory=ConnectorCategoryToggles)
     rate_limit: RateLimitSettings = field(default_factory=RateLimitSettings)
 
 

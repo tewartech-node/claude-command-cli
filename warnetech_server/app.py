@@ -24,6 +24,7 @@ from .database import ServerDatabase
 from .logging import get_logger
 from .middleware import RateLimiter, Request, build_middleware_chain, serialize_response
 from .routes import ServerDependencies, build_router
+from .security_intel_integration import SecurityIntelIntegration
 from .test_harness import TestHarness
 
 logger = get_logger(__name__)
@@ -96,6 +97,13 @@ class WarnetechServerApp:
 
         container_runner = ContainerRunner(config)
         database = ServerDatabase(config)
+
+        try:
+            security_intel = SecurityIntelIntegration(config, database)
+        except RuntimeError as exc:
+            logger.warning("security intel integration unavailable at startup", reason=str(exc))
+            security_intel = None
+
         return ServerDependencies(
             config=config,
             control_plane=ControlPlaneClient(config),
@@ -103,6 +111,7 @@ class WarnetechServerApp:
             cli=CLIIntegration(config),
             ai=ai,
             test_harness=TestHarness(container_runner, database),
+            security_intel=security_intel,
         )
 
     def start(self, block: bool = False) -> None:
