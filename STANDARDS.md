@@ -139,7 +139,7 @@ try {
 
 ## Termux CLI Standards
 
-These standards apply to `termux-cli/` code.
+These standards apply to `warnetech_cli_legacy/` code.
 
 ### Command Design
 ```bash
@@ -272,7 +272,7 @@ function respondError(message, statusCode = 500) {
 ### CLI: Command Pattern
 ```bash
 #!/bin/bash
-# termux-cli/commands/ai.sh
+# warnetech_cli_legacy/commands/ai.sh
 
 usage() {
   cat <<EOF

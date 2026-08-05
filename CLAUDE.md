@@ -130,7 +130,7 @@ git branch -d feat/feature-name
    };
    ```
 
-3. **Add CLI command in termux-cli/warnet**
+3. **Add CLI command in warnetech_cli_legacy/warnet**
    ```javascript
    program
      .command('newcmd <arg>')
@@ -234,8 +234,8 @@ npm test        # Jest
 npm run dev
 
 # Terminal 2: Test CLI commands
-./termux-cli/warnet status
-./termux-cli/warnet ai "test prompt"
+./warnetech_cli_legacy/warnet status
+./warnetech_cli_legacy/warnet ai "test prompt"
 ```
 
 ### Deployment
@@ -288,9 +288,9 @@ npm run test:integration
 npm run dev
 
 # In another terminal
-./termux-cli/warnet ai "explain this code"
-./termux-cli/warnet gh-open "tewartech-node/claude-command-cli"
-./termux-cli/warnet status
+./warnetech_cli_legacy/warnet ai "explain this code"
+./warnetech_cli_legacy/warnet gh-open "tewartech-node/claude-command-cli"
+./warnetech_cli_legacy/warnet status
 ```
 
 ## Documentation Maintenance
@@ -336,7 +336,7 @@ Ask the user (don't just decide) when:
 ### Adding a New Command
 1. Create handler in worker/commands/
 2. Register in COMMAND_HANDLERS
-3. Add CLI command in termux-cli/warnet
+3. Add CLI command in warnetech_cli_legacy/warnet
 4. Add tests
 5. Document in 05_CLI_COMMANDS.md
 6. Commit: `feat: add warnet <cmd> command`

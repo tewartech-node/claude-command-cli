@@ -1,5 +1,13 @@
 #!/usr/bin/env node
 
+// DEPRECATED — this is the legacy Node.js CLI, kept for its GitHub
+// operations, AI chat, and self-evolution commands that the canonical
+// Python CLI (warnetech_cli/) does not implement. For status, metrics,
+// signatures, learn, recover, slice, compress, ghost, retention, ai-query,
+// and db operations, use warnetech_cli instead — it talks to
+// warnetech-server's real HTTP API. See warnetech_cli_legacy as its own
+// name: nothing here should be treated as the primary CLI going forward.
+//
 // Termux CLI - Main entrypoint
 // Usage: warnet <command> [args...]
 

@@ -50,9 +50,17 @@ def create_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
     subparsers.add_parser("status", help="Get system status")
-    subparsers.add_parser("metrics", help="Retrieve system metrics")
-    subparsers.add_parser("signatures", help="List attack signatures")
-    subparsers.add_parser("learn", help="Train adaptive learning model")
+
+    metrics_parser = subparsers.add_parser("metrics", help="Retrieve system metrics")
+    metrics_parser.add_argument("--source-id", default="cli", help="Source ID to query metrics for")
+
+    signatures_parser = subparsers.add_parser("signatures", help="List attack signatures")
+    signatures_parser.add_argument("--attack-type", default=None, help="Filter by attack type")
+
+    learn_parser = subparsers.add_parser("learn", help="Report an outcome to the adaptive learning model")
+    learn_parser.add_argument("attack_type", help="Attack type, e.g. sql_injection")
+    learn_parser.add_argument("pattern", help="The pattern that matched (or should have matched)")
+    learn_parser.add_argument("--false-positive", action="store_true", help="Report this as a false positive instead of a true positive")
 
     recover_parser = subparsers.add_parser("recover", help="Recover from attack")
     recover_parser.add_argument("attack_id", help="Attack ID to recover")
@@ -188,11 +196,11 @@ def main(argv: Optional[list] = None) -> int:
         if args.command == "status":
             result = commands.status()
         elif args.command == "metrics":
-            result = commands.metrics()
+            result = commands.metrics(args.source_id)
         elif args.command == "signatures":
-            result = commands.signatures()
+            result = commands.signatures(args.attack_type)
         elif args.command == "learn":
-            result = commands.learn()
+            result = commands.learn(args.attack_type, args.pattern, not args.false_positive)
         elif args.command == "recover":
             result = commands.recover(args.attack_id)
         elif args.command == "slice":

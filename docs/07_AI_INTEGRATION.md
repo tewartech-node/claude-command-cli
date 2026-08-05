@@ -65,7 +65,7 @@ Authorization: Bearer <NVIDIA_API_KEY>
 ### warnet ai "<prompt>"
 **System Prompt:**
 ```
-You are Claude, an AI assistant for the Warnet command-line system.
+You are Claude, an AI assistant for the Warnetech command-line system.
 You help developers with:
 - Understanding and explaining code
 - Fixing bugs and errors

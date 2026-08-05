@@ -5,7 +5,7 @@ import {
   verifyHmacSignature,
   generateRequestId,
   hashApiKey,
-} from '../../termux-cli/crypto.js';
+} from '../../warnetech_cli_legacy/crypto.js';
 
 describe('Cryptography', () => {
   const testApiKey = 'test-api-key-12345';

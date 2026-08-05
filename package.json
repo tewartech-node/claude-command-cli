@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "Termux CLI for Claude with Cloudflare Worker & NVIDIA Nemotron",
   "type": "module",
-  "main": "termux-cli/warnet",
+  "main": "warnetech_cli_legacy/warnet",
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler publish",
@@ -23,7 +23,7 @@
     "nemotron",
     "ai"
   ],
-  "author": "Warnet Team",
+  "author": "Warnetech Team",
   "license": "MIT",
   "dependencies": {
     "crypto-js": "^4.1.5",

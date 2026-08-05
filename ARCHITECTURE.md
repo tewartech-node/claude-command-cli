@@ -12,7 +12,7 @@
 │  │  $ warnet gh-push "feat: new feature"                     │  │
 │  │  $ warnet status                                          │  │
 │  │                                                            │  │
-│  │  ├─ termux-cli/warnet (Node.js/Bash)                     │  │
+│  │  ├─ warnetech_cli_legacy/warnet (Node.js/Bash)                     │  │
 │  │  ├─ Config: ~/.claude-cli/config.json                    │  │
 │  │  ├─ Sends encrypted requests (AES-256-GCM)              │  │
 │  │  ├─ Receives JSON responses                              │  │
@@ -117,7 +117,7 @@
 
 ## Component Breakdown
 
-### Layer 1: CLI (termux-cli/)
+### Layer 1: CLI (warnetech_cli_legacy/)
 ```
 warnet (main entrypoint)
 ├─ Commands:
@@ -206,7 +206,7 @@ utils/ (Shared)
 GitHub Repository
 ├─ /docs (9 specification files)
 ├─ /worker (Cloudflare Worker code)
-├─ /termux-cli (CLI scripts)
+├─ /warnetech_cli_legacy (CLI scripts)
 ├─ /scripts (Automation scripts)
 ├─ package.json
 ├─ README.md
@@ -300,7 +300,7 @@ TIER_3: Public
 ```
 Local Machine
 ├─ npm run dev (Worker dev server)
-├─ ./termux-cli/warnet (CLI testing)
+├─ ./warnetech_cli_legacy/warnet (CLI testing)
 └─ npm test (Local testing)
 ```
 
@@ -327,7 +327,7 @@ Cloudflare Edge (Production)
 
 ### Adding Features
 The architecture supports:
-- ✅ New CLI commands (add to termux-cli/warnet)
+- ✅ New CLI commands (add to warnetech_cli_legacy/warnet)
 - ✅ New Worker handlers (add to worker/commands/)
 - ✅ New API integrations (add to worker/utils/)
 - ✅ New security checks (enhance worker/utils/validate.js)

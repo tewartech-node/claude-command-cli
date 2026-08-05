@@ -47,7 +47,7 @@ class Config:
     def _get_defaults(self) -> Dict[str, Any]:
         """Get default configuration."""
         return {
-            "server_url": os.getenv("WARNETECH_SERVER_URL", "http://localhost:8000"),
+            "server_url": os.getenv("WARNETECH_SERVER_URL", "http://localhost:8080"),
             "api_key": os.getenv("WARNETECH_API_KEY", ""),
             "supabase_url": os.getenv("SUPABASE_URL", ""),
             "supabase_key": os.getenv("SUPABASE_KEY", ""),

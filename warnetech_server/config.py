@@ -73,7 +73,7 @@ class ServerConfig:
     api_key: str = field(default_factory=lambda: os.environ.get("API_KEY", ""))
     auth_token_secret: str = field(default_factory=lambda: os.environ.get("WARNETECH_AUTH_SECRET", ""))
 
-    cli_entrypoint: str = field(default_factory=lambda: os.environ.get("WARNETECH_CLI_ENTRYPOINT", "termux-cli/warnet"))
+    cli_entrypoint: str = field(default_factory=lambda: os.environ.get("WARNETECH_CLI_ENTRYPOINT", "warnetech_cli_legacy/warnet"))
     cli_timeout_seconds: int = 30
 
     database: DatabaseSettings = field(default_factory=DatabaseSettings)

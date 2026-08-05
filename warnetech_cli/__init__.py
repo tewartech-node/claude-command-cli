@@ -9,11 +9,11 @@ AI-driven recall.
 """
 
 __version__ = "1.0.0"
-__author__ = "Warnetwork"
+__author__ = "Warnetech"
 __license__ = "MIT"
 
-from .main import cli
+from .main import main
 from .config import Config
 from .logging import setup_logging
 
-__all__ = ["cli", "Config", "setup_logging"]
+__all__ = ["main", "Config", "setup_logging"]

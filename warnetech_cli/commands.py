@@ -4,6 +4,7 @@ Implements all 20 warnetech CLI commands with full functionality.
 """
 
 import json
+import time
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 from pathlib import Path
@@ -17,6 +18,7 @@ from warnetech_cli.retention import RetentionPolicy
 from warnetech_cli.slice_manager import SliceManager
 from warnetech_cli.ai_controller import AIController
 from warnetech_cli.ghost_store import GhostStore
+from warnetech_cli.server_client import ServerClient
 
 
 class Commands:
@@ -25,55 +27,31 @@ class Commands:
     def __init__(self, config: Config):
         self.config = config
         self.logger = setup_logging(log_level=config.get("log_level", "INFO"))
+        self.client = ServerClient(config)
 
     def status(self, args: Optional[List[str]] = None) -> Dict[str, Any]:
-        """Get system status."""
-        return {
-            "status": "operational",
-            "timestamp": datetime.utcnow().isoformat(),
-            "server": self.config.get("server_url"),
-            "version": "1.0.0",
-        }
+        """Get system status from warnetech-server."""
+        return self.client.get("/status")
 
-    def metrics(self, args: Optional[List[str]] = None) -> Dict[str, Any]:
-        """Retrieve system metrics."""
-        return {
-            "timestamp": datetime.utcnow().isoformat(),
-            "uptime_seconds": 3600,
-            "requests_total": 1250,
-            "errors_total": 3,
-            "avg_response_ms": 145.3,
-        }
+    def metrics(self, source_id: str = "cli") -> Dict[str, Any]:
+        """Retrieve system metrics from warnetech-server."""
+        return self.client.get("/metrics", params={"source_id": source_id})
 
-    def signatures(self, args: Optional[List[str]] = None) -> Dict[str, Any]:
-        """List attack signatures."""
-        return {
-            "total_signatures": 427,
-            "active_signatures": 412,
-            "critical": 45,
-            "high": 89,
-            "medium": 156,
-            "low": 122,
-            "last_updated": datetime.utcnow().isoformat(),
-        }
+    def signatures(self, attack_type: Optional[str] = None) -> Dict[str, Any]:
+        """List attack signatures from warnetech-server."""
+        return self.client.get("/signatures", params={"attack_type": attack_type})
 
-    def learn(self, args: Optional[List[str]] = None) -> Dict[str, Any]:
-        """Train adaptive learning model."""
-        return {
-            "learning_status": "training",
-            "samples_processed": 5432,
-            "model_accuracy": 94.7,
-            "started_at": datetime.utcnow().isoformat(),
-        }
+    def learn(self, attack_type: str, pattern: str, true_positive: bool = True) -> Dict[str, Any]:
+        """Report an outcome to warnetech-server's adaptive learning model."""
+        return self.client.post("/learn", body={
+            "attack_type": attack_type,
+            "pattern": pattern,
+            "true_positive": true_positive,
+        })
 
     def recover(self, attack_id: str) -> Dict[str, Any]:
-        """Recover from attack using ghost copies."""
-        return {
-            "attack_id": attack_id,
-            "recovery_status": "initiated",
-            "ghost_copies_available": 3,
-            "estimated_time_minutes": 15,
-        }
+        """Trigger warnetech-server's recovery protocol for an incident."""
+        return self.client.post("/recover", body={"incident_id": attack_id})
 
     def slice(
         self, data_path: str, window_size: str = "1hour"
@@ -123,41 +101,34 @@ class Commands:
         return GhostStore.retrieve_ghost_copy(ghost_id)
 
     def retention_apply(self, policy_name: str) -> Dict[str, Any]:
-        """Apply retention policy."""
+        """Apply a retention policy via warnetech-server. Validates the
+        policy name locally first (fast, no round-trip for a typo) before
+        forwarding the request.
+        """
         policy_config = RetentionPolicy.TIER_CONFIG.get(policy_name)
         if not policy_config:
             return {"error": f"Unknown policy: {policy_name}"}
-        return {
-            "policy": policy_name,
-            "applied_at": datetime.utcnow().isoformat(),
-            "config": policy_config,
-        }
+        return self.client.post("/retention/apply", body={"policy_name": policy_name, "config": policy_config})
 
     def retention_policy(
         self, action: str, policy_name: str = "hot"
     ) -> Dict[str, Any]:
-        """Manage retention policies."""
+        """Manage retention policies. `list` is answered locally from the
+        known tier names; `get` reflects warnetech-server's actual config.
+        """
         if action == "list":
             return {
                 "policies": list(RetentionPolicy.TIER_CONFIG.keys()),
                 "listed_at": datetime.utcnow().isoformat(),
             }
         elif action == "get":
-            return {
-                "policy": policy_name,
-                "config": RetentionPolicy.TIER_CONFIG.get(policy_name),
-            }
+            return self.client.get("/retention/policy")
         else:
             return {"error": f"Unknown action: {action}"}
 
     def ai_query(self, query: str) -> Dict[str, Any]:
-        """Query AI system."""
-        return {
-            "query": query,
-            "status": "processing",
-            "ai_engine": "nemotron",
-            "query_id": f"ai_{datetime.utcnow().timestamp()}",
-        }
+        """Send a semantic query to warnetech-server's AI integration."""
+        return self.client.post("/ai/query", body={"mode": "search", "query": query, "slice_embeddings": []})
 
     def ai_recall(self, dataset_id: str) -> Dict[str, Any]:
         """Recall data using AI inference."""
@@ -219,27 +190,23 @@ class Commands:
             return {"error": f"Unknown action: {action}"}
 
     def server_ping(self) -> Dict[str, Any]:
-        """Ping server."""
+        """Ping warnetech-server and measure real round-trip latency."""
+        start = time.monotonic()
+        result = self.client.get("/status")
+        latency_ms = (time.monotonic() - start) * 1000
+        if "error" in result:
+            return {"status": "unreachable", "server": self.config.get("server_url"), **result}
         return {
             "status": "pong",
             "server": self.config.get("server_url"),
-            "latency_ms": 42,
+            "latency_ms": round(latency_ms, 1),
             "timestamp": datetime.utcnow().isoformat(),
         }
 
     def db_check(self) -> Dict[str, Any]:
-        """Check database connectivity."""
-        return {
-            "database": "supabase",
-            "status": "connected",
-            "latency_ms": 58,
-            "timestamp": datetime.utcnow().isoformat(),
-        }
+        """Check database connectivity via warnetech-server."""
+        return self.client.get("/db/health")
 
     def db_sync(self) -> Dict[str, Any]:
-        """Sync with database."""
-        return {
-            "sync_status": "initiated",
-            "records_synced": 0,
-            "started_at": datetime.utcnow().isoformat(),
-        }
+        """Trigger a database partition/rollup sync via warnetech-server."""
+        return self.client.post("/db/sync")

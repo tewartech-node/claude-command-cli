@@ -9,7 +9,7 @@ These are the primary development goals.
 ### 1. Improve the Termux CLI Script
 **Status**: ✅ Phase 1 Complete (Core Features)
 
-**What**: Enhance termux-cli/warnet with full functionality
+**What**: Enhance warnetech_cli_legacy/warnet with full functionality
 
 **Subtasks**:
 - [x] Implement command parser (Commander.js)

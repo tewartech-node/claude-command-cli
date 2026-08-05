@@ -79,7 +79,7 @@
 
 ## Component Responsibilities
 
-### termux-cli/warnet
+### warnetech_cli_legacy/warnet
 - Command parsing & routing
 - Request encryption
 - Config management

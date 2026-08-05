@@ -23,7 +23,7 @@ worker/
     ├── respond.js     # Response formatting
     └── nemotron.js    # NVIDIA API client
 
-termux-cli/
+warnetech_cli_legacy/
 ├── warnet             # Main CLI entrypoint
 └── config.json        # Runtime config
 

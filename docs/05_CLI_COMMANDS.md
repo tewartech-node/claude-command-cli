@@ -1,5 +1,17 @@
 # CLI Commands Reference
 
+> **Legacy CLI.** This documents `warnetech_cli_legacy/warnet` (the
+> original Node.js CLI, deprecated but kept for its GitHub, AI-chat, and
+> self-evolution commands). The canonical CLI is now the Python
+> `warnetech_cli` package, which talks to warnetech-server's real HTTP
+> API — see `warnetech_cli/main.py` for its command surface
+> (`status`, `metrics`, `signatures`, `learn`, `recover`, `slice`,
+> `compress`, `ghost-create`/`ghost-recall`, `retention-apply`/`retention-policy`,
+> `ai-query`/`ai-recall`, `export`/`import`, `server-ping`, `db-check`,
+> `db-sync`). The `warnet <command>` examples below are accurate for the
+> legacy binary's real invocation syntax and are left as-is rather than
+> rewritten to a command name that binary doesn't have.
+
 ## Core Commands
 
 ### warnet ai

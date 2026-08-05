@@ -9,7 +9,7 @@ describe('git commands', () => {
 
   it('gh-push command exists and has correct options', async () => {
     try {
-      await execAsync('node termux-cli/warnet gh-push --help');
+      await execAsync('node warnetech_cli_legacy/warnet gh-push --help');
       // If no error, command exists
       expect(true).toBe(true);
     } catch (error) {
@@ -20,7 +20,7 @@ describe('git commands', () => {
 
   it('gh-pull command exists and has correct options', async () => {
     try {
-      await execAsync('node termux-cli/warnet gh-pull --help');
+      await execAsync('node warnetech_cli_legacy/warnet gh-pull --help');
       // If no error, command exists
       expect(true).toBe(true);
     } catch (error) {
@@ -31,7 +31,7 @@ describe('git commands', () => {
 
   it('gh-push requires a commit message', async () => {
     try {
-      await execAsync('node termux-cli/warnet gh-push');
+      await execAsync('node warnetech_cli_legacy/warnet gh-push');
       // Should fail - missing message argument
       expect(false).toBe(true);
     } catch (error) {

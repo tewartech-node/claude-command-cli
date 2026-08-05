@@ -11,7 +11,7 @@ async function chat(prompt, apiKey, options = {}) {
     messages: [
       {
         role: 'system',
-        content: 'You are Claude, an AI assistant for the Warnet command-line system. Provide concise, actionable responses.',
+        content: 'You are Claude, an AI assistant for the Warnetech command-line system. Provide concise, actionable responses.',
       },
       {
         role: 'user',
