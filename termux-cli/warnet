@@ -189,17 +189,82 @@ program
 program
   .command('gh-push <message>')
   .description('Commit and push changes to GitHub')
-  .action(async (message) => {
-    console.log(`✓ Pushing: ${message}`);
-    // TODO: Implement gh-push command
+  .option('--no-verify', 'Skip pre-commit hooks')
+  .action(async (message, options) => {
+    try {
+      console.log('> Checking changes...');
+      const { stdout: status } = await execAsync('git status --porcelain');
+
+      if (!status.trim()) {
+        console.log('✗ Error: No changes to commit');
+        console.log('  Check: git status');
+        console.log('  Add: git add .');
+        process.exit(1);
+      }
+
+      console.log('✓ Changes found');
+      console.log('> Staging files...');
+      await execAsync('git add .');
+
+      console.log('> Committing...');
+      const commitCmd = `git commit -m "${message.replace(/"/g, '\\"')}"${options.verify ? '' : ' --no-verify'}`;
+      await execAsync(commitCmd);
+
+      console.log('> Pushing...');
+      await execAsync('git push -u origin HEAD');
+
+      console.log('✓ Success: Pushed to origin');
+      const { stdout: branch } = await execAsync('git rev-parse --abbrev-ref HEAD');
+      console.log(`  Branch: ${branch.trim()}`);
+    } catch (error) {
+      if (error.message.includes('nothing to commit')) {
+        console.log('✗ Error: No changes to commit');
+      } else if (error.message.includes('conflict')) {
+        console.log('✗ Error: Merge conflict detected');
+        console.log('  Resolve conflicts and try again');
+      } else if (error.message.includes('rejected')) {
+        console.log('✗ Error: Push rejected (non-fast-forward)');
+        console.log('  Run: git pull --rebase');
+      } else {
+        console.log('✗ Error: Git operation failed');
+      }
+      console.log(`  ${error.message.split('\n')[0]}`);
+      process.exit(1);
+    }
   });
 
 program
   .command('gh-pull')
   .description('Pull latest changes from GitHub')
-  .action(async () => {
-    console.log('✓ Pulling latest...');
-    // TODO: Implement gh-pull command
+  .option('--rebase', 'Use rebase instead of merge')
+  .action(async (options) => {
+    try {
+      console.log('> Fetching latest...');
+      await execAsync('git fetch origin');
+
+      console.log('> Pulling...');
+      const pullCmd = options.rebase ? 'git pull --rebase' : 'git pull';
+      const { stdout } = await execAsync(pullCmd);
+
+      console.log('✓ Success: Updated from origin');
+      const lines = stdout.split('\n');
+      for (const line of lines) {
+        if (line.includes('file') || line.includes('changed') || line.includes('insertion') || line.includes('deletion')) {
+          console.log(`  ${line}`);
+        }
+      }
+    } catch (error) {
+      if (error.message.includes('conflict')) {
+        console.log('✗ Error: Merge conflict detected');
+        console.log('  Resolve conflicts and run: git add . && git commit');
+      } else if (error.message.includes('CONFLICT')) {
+        console.log('✗ Error: Merge conflict - resolve manually');
+      } else {
+        console.log('✗ Error: Git pull failed');
+      }
+      console.log(`  ${error.message.split('\n')[0]}`);
+      process.exit(1);
+    }
   });
 
 // System commands
