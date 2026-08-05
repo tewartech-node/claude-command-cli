@@ -11,6 +11,13 @@ import os from 'os';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import fs from 'fs/promises';
+import {
+  encryptData,
+  decryptData,
+  generateHmacSignature,
+  generateRequestId,
+  hashApiKey,
+} from './crypto.js';
 
 const execAsync = promisify(exec);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -40,27 +47,57 @@ async function sendToWorker(command, args = [], config = null) {
 
   const workerUrl = config.worker_url || 'http://localhost:8787';
   const apiKey = config.api_key || 'dev-key';
+  const requestId = generateRequestId();
+  const timestamp = new Date().toISOString();
 
   const payload = {
     command,
     args,
-    encrypted: false,
   };
 
   try {
+    // Encrypt payload
+    const encryptedPayload = await encryptData(JSON.stringify(payload), apiKey);
+
+    // Generate signature
+    const signature = generateHmacSignature({ encrypted_data: encryptedPayload }, apiKey);
+
+    const request = {
+      encrypted_data: encryptedPayload,
+      signature,
+    };
+
     const response = await fetch(`${workerUrl}/cli`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-API-Key': apiKey,
-        'X-Request-ID': `req-${Date.now()}`,
-        'X-Timestamp': new Date().toISOString(),
+        'X-API-Key-Hash': hashApiKey(apiKey),
+        'X-Request-ID': requestId,
+        'X-Timestamp': timestamp,
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(request),
     });
 
-    const data = await response.json();
-    return { ok: response.ok, status: response.status, data };
+    const responseData = await response.json();
+
+    // Decrypt response if encrypted
+    if (responseData.encrypted_data && responseData.signature) {
+      try {
+        const decrypted = await decryptData(responseData.encrypted_data, apiKey);
+        return {
+          ok: response.ok,
+          status: response.status,
+          data: JSON.parse(decrypted),
+        };
+      } catch (error) {
+        return {
+          ok: false,
+          error: `Failed to decrypt response: ${error.message}`,
+        };
+      }
+    }
+
+    return { ok: response.ok, status: response.status, data: responseData };
   } catch (error) {
     return { ok: false, error: error.message };
   }

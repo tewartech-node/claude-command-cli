@@ -31,4 +31,12 @@ function respondError(error, statusCode = 500) {
   };
 }
 
-export { respondSuccess, respondError };
+function respondEncrypted(encryptedData, signature) {
+  return {
+    encrypted_data: encryptedData,
+    signature,
+    timestamp: new Date().toISOString(),
+  };
+}
+
+export { respondSuccess, respondError, respondEncrypted };

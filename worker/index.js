@@ -1,5 +1,5 @@
-import { validateRequest } from './utils/validate.js';
-import { respondSuccess, respondError } from './utils/respond.js';
+import { validateRequest, decryptRequest } from './utils/validate.js';
+import { respondSuccess, respondError, respondEncrypted } from './utils/respond.js';
 import handlePing from './commands/ping.js';
 import handleAi from './commands/ai.js';
 import handleGh from './commands/gh.js';
@@ -34,7 +34,7 @@ async function handleRequest(request, env, ctx) {
     try {
       const body = await request.json();
 
-      // Validate request
+      // Validate request and decrypt if needed
       const validation = await validateRequest(body, request.headers, env);
       if (!validation.ok) {
         return new Response(
@@ -43,7 +43,19 @@ async function handleRequest(request, env, ctx) {
         );
       }
 
-      const { command, args, decrypted } = validation;
+      let commandData = validation;
+      if (body.encrypted_data) {
+        try {
+          commandData = await decryptRequest(body.encrypted_data, request.headers, env);
+        } catch (error) {
+          return new Response(
+            JSON.stringify(respondError(new Error('Decryption failed'), 400)),
+            { status: 400, headers: { 'Content-Type': 'application/json' } }
+          );
+        }
+      }
+
+      const { command, args } = commandData;
 
       // Get handler
       const handler = COMMAND_HANDLERS[command];
