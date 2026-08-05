@@ -81,3 +81,39 @@ begin
   );
 end;
 $function$;
+
+-- maintain_threat_event_partitions(): dedicated threat_events partition
+-- maintenance, mirroring maintain_partitions()'s logic (current + next 2
+-- months, create-if-missing, no ALTER or DROP) but scoped to threat_events
+-- only. maintain_partitions() above already covers threat_events too —
+-- this function is intentionally redundant with that, not a replacement
+-- for it; both are idempotent, so running both is harmless, just double
+-- work. Added as its own RPC so a caller can maintain threat_events
+-- partitions without also touching metric_rollups.
+create or replace function public.maintain_threat_event_partitions()
+returns void
+language plpgsql
+set search_path to 'public', 'pg_temp'
+as $function$
+declare
+  v_month date;
+  v_partition_name text;
+  v_start timestamptz;
+  v_end timestamptz;
+  i integer;
+begin
+  for i in 0..2 loop
+    v_month := (date_trunc('month', now()) + (i || ' months')::interval)::date;
+    v_partition_name := 'threat_events_' || to_char(v_month, 'YYYYMM');
+    v_start := v_month;
+    v_end := v_month + interval '1 month';
+
+    if not exists (select 1 from pg_class where relname = v_partition_name) then
+      execute format(
+        'create table if not exists public.%I partition of public.threat_events for values from (%L) to (%L)',
+        v_partition_name, v_start, v_end
+      );
+    end if;
+  end loop;
+end;
+$function$;

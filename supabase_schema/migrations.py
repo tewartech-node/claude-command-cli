@@ -1,6 +1,6 @@
 """Applies tables.sql and rpcs.sql to the existing Supabase project.
 
-Two safety properties, both load-bearing given this project already has
+Three safety properties, all load-bearing given this project already has
 live data and live callers:
 
 1. Table statements use CREATE TABLE IF NOT EXISTS, so no existing table's
@@ -13,10 +13,17 @@ live data and live callers:
    pass dry_run=False explicitly) only after confirming rpcs.sql's
    `create or replace function` statements — unlike the tables, those DO
    overwrite live behavior; see rpcs.sql's header comment.
+
+3. Every `create or replace function` in rpcs.sql must name a function in
+   SAFE_RPC_FUNCTIONS below. This is the actual enforcement of "only the
+   approved RPCs" — a new function added to rpcs.sql without also being
+   added to this set is refused rather than silently applied, so scope
+   creep in the SQL file can't slip past review.
 """
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from .config import SchemaConfig, DEFAULT_CONFIG
@@ -26,6 +33,19 @@ from .utils import SqlExecutionError, execute_sql_with_retry, split_statements
 logger = get_logger(__name__)
 
 _SCHEMA_DIR = Path(__file__).resolve().parent
+
+# The complete set of RPC functions this module is authorized to create or
+# replace. Every name here has been individually approved for live
+# application against tewartech-project-supabase.
+SAFE_RPC_FUNCTIONS = frozenset({
+    "maintain_partitions",
+    "refresh_metric_rollups",
+    "maintain_threat_event_partitions",
+})
+
+_FUNCTION_NAME_PATTERN = re.compile(
+    r"create\s+or\s+replace\s+function\s+(?:public\.)?(\w+)\s*\(", re.IGNORECASE
+)
 
 
 class MigrationError(Exception):
@@ -39,6 +59,19 @@ def _read_sql(filename: str) -> str:
     return path.read_text(encoding="utf-8")
 
 
+def _unsafe_function_name(statement: str) -> str | None:
+    """Returns the function name if this statement defines a function not
+    in SAFE_RPC_FUNCTIONS, else None. Statements that aren't function
+    definitions (table DDL, RLS grants) always pass — this check only
+    applies to CREATE OR REPLACE FUNCTION.
+    """
+    match = _FUNCTION_NAME_PATTERN.search(statement)
+    if match is None:
+        return None
+    name = match.group(1)
+    return name if name not in SAFE_RPC_FUNCTIONS else None
+
+
 def apply_file(config: SchemaConfig, filename: str, dry_run: bool | None = None) -> dict:
     dry_run = config.migration.dry_run if dry_run is None else dry_run
     sql_text = _read_sql(filename)
@@ -47,10 +80,18 @@ def apply_file(config: SchemaConfig, filename: str, dry_run: bool | None = None)
     log_migration_step(logger, f"apply_{filename}", "started", {"statement_count": len(statements), "dry_run": dry_run})
 
     applied = 0
+    skipped = 0
     errors: list[dict] = []
 
     for i, statement in enumerate(statements):
         step_name = f"{filename}[{i}]"
+
+        unsafe_name = _unsafe_function_name(statement)
+        if unsafe_name is not None:
+            log_migration_step(logger, step_name, "skipped_unsafe", {"function": unsafe_name})
+            skipped += 1
+            continue
+
         if dry_run:
             log_migration_step(logger, step_name, "dry_run", {"preview": statement[:200]})
             applied += 1
@@ -69,6 +110,7 @@ def apply_file(config: SchemaConfig, filename: str, dry_run: bool | None = None)
         "dry_run": dry_run,
         "total_statements": len(statements),
         "applied": applied,
+        "skipped_unsafe": skipped,
         "errors": errors,
     }
     log_migration_step(logger, f"apply_{filename}", "completed" if not errors else "completed_with_errors", result)

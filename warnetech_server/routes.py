@@ -169,9 +169,14 @@ def get_db_health(req: Request, deps: ServerDependencies) -> Response:
 
 def post_db_sync(req: Request, deps: ServerDependencies) -> Response:
     partitions_ok = deps.database.sync_partitions()
+    threat_event_partitions_ok = deps.database.sync_threat_event_partitions()
     rollups_ok = deps.database.refresh_rollups()
-    ok = partitions_ok and rollups_ok
-    return Response(status=200 if ok else 502, body={"partitions_synced": partitions_ok, "rollups_refreshed": rollups_ok})
+    ok = partitions_ok and threat_event_partitions_ok and rollups_ok
+    return Response(status=200 if ok else 502, body={
+        "partitions_synced": partitions_ok,
+        "threat_event_partitions_synced": threat_event_partitions_ok,
+        "rollups_refreshed": rollups_ok,
+    })
 
 
 def build_router() -> Router:

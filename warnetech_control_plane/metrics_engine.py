@@ -134,3 +134,21 @@ class MetricsEngine:
         self._storage.put(key, body)
         logger.info("raw metrics exported", bucket=self._config.backups_bucket, key=key, records=len(raw_records))
         return key
+
+    def maintain_partitions(self) -> dict:
+        """Triggers both partition-maintenance RPCs — maintain_partitions()
+        (metric_rollups and threat_events) and the dedicated
+        maintain_threat_event_partitions() (threat_events only, redundant
+        with the first by design). Meant to be called periodically by
+        whatever scheduler this process runs under; this codebase has no
+        in-process cron, so the caller (e.g. warnetech-server's own
+        maintenance workflow) is responsible for triggering it on a
+        schedule.
+        """
+        if self._db is None:
+            logger.warning("maintain_partitions called with no database configured")
+            return {"partitions_synced": False, "threat_event_partitions_synced": False}
+
+        partitions_ok = self._db.sync_partitions()
+        threat_event_partitions_ok = self._db.sync_threat_event_partitions()
+        return {"partitions_synced": partitions_ok, "threat_event_partitions_synced": threat_event_partitions_ok}

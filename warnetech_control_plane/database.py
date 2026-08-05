@@ -100,3 +100,15 @@ class SupabaseDatabase:
         ok = result is not None
         logger.info("partition sync requested", ok=ok)
         return ok
+
+    def sync_threat_event_partitions(self) -> bool:
+        """Invokes maintain_threat_event_partitions() — dedicated
+        threat_events partition maintenance, redundant with (not a
+        replacement for) sync_partitions()'s own threat_events coverage.
+        Both are idempotent create-if-missing operations; calling both is
+        harmless, just double work.
+        """
+        result = self.call_rpc("maintain_threat_event_partitions", {})
+        ok = result is not None
+        logger.info("threat_events partition sync requested", ok=ok)
+        return ok

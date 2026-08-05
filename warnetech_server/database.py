@@ -110,6 +110,15 @@ class ServerDatabase:
         log_database_operation(logger, "rpc", "maintain_partitions", ok)
         return ok
 
+    def sync_threat_event_partitions(self) -> bool:
+        """Dedicated threat_events partition maintenance — redundant with
+        (not a replacement for) sync_partitions()'s own threat_events
+        coverage; both are idempotent, so calling both is harmless.
+        """
+        ok = self.call_rpc("maintain_threat_event_partitions", {}) is not None
+        log_database_operation(logger, "rpc", "maintain_threat_event_partitions", ok)
+        return ok
+
     def refresh_rollups(self) -> bool:
         ok = self.call_rpc("refresh_metric_rollups", {}) is not None
         log_database_operation(logger, "rpc", "refresh_metric_rollups", ok)
