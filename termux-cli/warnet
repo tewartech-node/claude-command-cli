@@ -101,9 +101,40 @@ program
   .option('--timeout <seconds>', 'Request timeout in seconds', '30')
   .option('--model <model>', 'AI model to use', 'nemotron-3-ultra')
   .action(async (prompt, options) => {
-    console.log('✓ Sending prompt to Claude...');
-    // TODO: Implement AI command
-    console.log(`Prompt: ${prompt}`);
+    try {
+      const config = await loadConfig();
+
+      // Check for NVIDIA API key
+      if (!config.nemotron_api_key) {
+        console.log('✗ Error: NVIDIA_API_KEY not found in config');
+        console.log('  Run: warnetech init');
+        console.log('  For help: warnetech help --error "API_KEY not found"');
+        process.exit(1);
+      }
+
+      console.log('> Sending prompt to Claude...');
+      const args = [prompt];
+      if (options.stream) args.push('--stream');
+
+      const { ok, data, error } = await sendToWorker('ai', args, config);
+
+      if (!ok) {
+        console.log('✗ Error: Failed to get response from Claude');
+        console.log(`  ${error || data?.error}`);
+        process.exit(1);
+      }
+
+      const { response, tokens, model } = data.data;
+      console.log('');
+      console.log(response);
+      console.log('');
+      console.log(`✓ Model: ${model}`);
+      console.log(`  Tokens: ${tokens.input} input + ${tokens.output} output = ${tokens.total} total`);
+    } catch (error) {
+      console.log('✗ Error: Unexpected error');
+      console.log(`  ${error.message}`);
+      process.exit(1);
+    }
   });
 
 // Fix command
