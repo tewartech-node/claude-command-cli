@@ -2,21 +2,24 @@
 learning triggers, recovery triggers, retention policy updates, and slice
 and ghost operations.
 
-warnetech-control-plane is an external service reached over HTTP (per
-ARCHITECTURE.md's Layer 3 "Warnetwork Control Plane" entry) — this client
-holds no assumptions about its implementation language or process, only
-its HTTP contract. Every call fails soft: on error it logs and returns
-None, and callers (routes.py) turn that into a degraded-but-honest API
-response rather than a 500, matching the invariant that a control-plane
-outage must never take the whole server down.
+Per docs/WARNETECH-CANONICAL-WIRING-SPEC.txt decision 1: this calls
+warnetech_control_plane in-process via direct Python imports, not HTTP.
+There is no network hop, no serialization boundary, and no separate
+service to deploy or secure — the two packages share one process and one
+in-memory ControlPlaneState.
+
+Every public method still fails soft: an exception inside the
+control-plane call is logged and turned into None, so a bug in one
+operation degrades that single API response (routes.py returns 502) rather
+than taking the whole server down. What no longer exists is a *reachability*
+failure mode — if warnetech_control_plane fails to import at all, that is a
+packaging error, not a transient condition, so it is raised immediately at
+construction instead of being caught per-call.
 """
 
 from __future__ import annotations
 
-import json
 import time
-import urllib.error
-import urllib.request
 from typing import Any, Optional
 
 from .config import ServerConfig
@@ -29,71 +32,158 @@ class ControlPlaneClient:
     def __init__(self, config: ServerConfig) -> None:
         self._config = config
 
-    def _request(self, method: str, path: str, body: Optional[Any] = None) -> Any:
-        url = f"{self._config.control_plane.base_url.rstrip('/')}/{path.lstrip('/')}"
-        data = json.dumps(body, default=str).encode("utf-8") if body is not None else None
-        req = urllib.request.Request(url, data=data, method=method)
-        req.add_header("Content-Type", "application/json")
-        if self._config.control_plane.api_key:
-            req.add_header("Authorization", f"Bearer {self._config.control_plane.api_key}")
+        try:
+            import warnetech_control_plane as wcp
+        except ImportError as exc:
+            raise RuntimeError(
+                "warnetech_control_plane is required for in-process control-plane wiring "
+                "(see docs/WARNETECH-CANONICAL-WIRING-SPEC.txt decision 1); "
+                "ensure it is importable alongside warnetech_server"
+            ) from exc
 
+        # warnetech_control_plane reads SUPABASE_URL/SUPABASE_KEY independently
+        # of warnetech_server's own ServerConfig.database — per wiring spec
+        # decision 2, both point at the same Supabase project via those two
+        # environment variables, so no explicit passthrough is needed here.
+        cp_config = wcp.ControlPlaneConfig()
+        self._cp_config = cp_config
+        self._state = wcp.ControlPlaneState(cp_config)
+        self._database = wcp.SupabaseDatabase(cp_config)
+
+        self._signatures = wcp.SignatureEngine(self._state, self._database, cp_config)
+        self._scoring = wcp.ScoringEngine(cp_config)
+        self._learning = wcp.LearningEngine(self._state, self._signatures, cp_config)
+        self._recovery = wcp.RecoveryEngine(self._state, self._signatures, self._database, cp_config)
+        self._retention = wcp.RetentionEngine(cp_config)
+        self._slicer = wcp.SliceEngine(cp_config)
+        self._ghost = wcp.GhostEngine(cp_config)
+
+        # One-time cache warm at startup. This mirrors the JS Worker's
+        # hourly-cron warm, but running synchronously here is fine — it is a
+        # one-time startup cost, not a per-request one.
+        self._signatures.sync_cache()
+
+    def _call(self, operation: str, fn) -> Optional[Any]:
         start = time.monotonic()
         try:
-            with urllib.request.urlopen(req, timeout=self._config.control_plane.timeout_seconds) as resp:
-                raw = resp.read()
-                result = json.loads(raw) if raw else None
-                log_control_plane_call(logger, path, True, (time.monotonic() - start) * 1000)
-                return result
-        except urllib.error.HTTPError as exc:
-            logger.error("control-plane http error", path=path, status=exc.code, body=exc.read().decode(errors="replace"))
-        except urllib.error.URLError as exc:
-            logger.error("control-plane unreachable", path=path, reason=str(exc.reason))
-        log_control_plane_call(logger, path, False, (time.monotonic() - start) * 1000)
-        return None
+            result = fn()
+            log_control_plane_call(logger, operation, True, (time.monotonic() - start) * 1000)
+            return result
+        except Exception as exc:  # noqa: BLE001 - one bad call must not take the server down
+            logger.error("control-plane call failed", operation=operation, error=str(exc))
+            log_control_plane_call(logger, operation, False, (time.monotonic() - start) * 1000)
+            return None
 
     # -- signatures / scoring -----------------------------------------------------
 
     def query_signatures(self, attack_type: Optional[str] = None) -> list[dict]:
-        path = "signatures" if not attack_type else f"signatures?attack_type={attack_type}"
-        result = self._request("GET", path)
-        return result or []
+        def op():
+            signatures = self._state.all_signatures()
+            if attack_type:
+                signatures = [s for s in signatures if s.get("attack_type") == attack_type]
+            return signatures
+        return self._call("query_signatures", op) or []
 
     def request_score(self, payload: dict) -> Optional[dict]:
-        return self._request("POST", "score", body=payload)
+        def op():
+            text = payload.get("text", "")
+            matches = self._signatures.match(text)
+            signature_score = matches[0]["score"] if matches else 0.0
+            result = self._scoring.score(
+                signature_score=signature_score,
+                behavioral_score=payload.get("behavioral_score", 0.0),
+                anomaly_score=payload.get("anomaly_score", 0.0),
+                adaptation_multiplier=payload.get("adaptation_multiplier", 1.0),
+            )
+            return {
+                "total": result.total,
+                "threat_level": result.threat_level,
+                "signature_score": result.signature_score,
+                "behavioral_score": result.behavioral_score,
+                "anomaly_score": result.anomaly_score,
+                "matched_signature_ids": [m["id"] for m in matches],
+            }
+        return self._call("request_score", op)
 
     # -- learning / recovery ----------------------------------------------------------
 
     def trigger_learning(self, attack_type: str, pattern: str, matched_ids: list[str], true_positive: bool) -> Optional[dict]:
-        return self._request(
-            "POST", "learn",
-            body={"attack_type": attack_type, "pattern": pattern, "matched_ids": matched_ids, "true_positive": true_positive},
-        )
+        def op():
+            result = self._learning.report_outcome(attack_type, pattern, matched_ids, true_positive)
+            if result is None:
+                return None
+            return result.to_dict() if hasattr(result, "to_dict") else result
+        return self._call("trigger_learning", op)
 
     def trigger_recovery(self, incident_id: str) -> Optional[dict]:
-        return self._request("POST", "recover", body={"incident_id": incident_id})
+        def op():
+            return self._recovery.run(incident_id).to_dict()
+        return self._call("trigger_recovery", op)
 
     # -- retention -------------------------------------------------------------------
 
     def update_retention_policy(self, policy: dict) -> Optional[dict]:
-        return self._request("POST", "retention/apply", body=policy)
+        def op():
+            # RetentionPolicy is a frozen dataclass on ControlPlaneConfig, not
+            # mutable state — recording the request here rather than silently
+            # no-op'ing, since actually changing it requires a config reload.
+            return {
+                "requested": policy,
+                "applied": False,
+                "note": "retention policy is config-driven (ControlPlaneConfig.retention); update config and restart to apply",
+            }
+        return self._call("update_retention_policy", op)
 
     def get_retention_policy(self) -> Optional[dict]:
-        return self._request("GET", "retention/policy")
+        def op():
+            r = self._cp_config.retention
+            return {
+                "hot_tier_hours": r.hot_tier_hours,
+                "warm_tier_days": r.warm_tier_days,
+                "ghost_tier_days": r.ghost_tier_days,
+                "downsample_factor": r.downsample_factor,
+            }
+        return self._call("get_retention_policy", op)
 
     # -- slice / ghost -----------------------------------------------------------------
 
     def slice_operation(self, params: dict) -> Optional[dict]:
-        return self._request("POST", "slice", body=params)
+        def op():
+            sl = self._slicer.build_slice(
+                slice_id=params["slice_id"],
+                domain=params["domain"],
+                records=params.get("records", []),
+                time_start=params["time_start"],
+                time_end=params["time_end"],
+                compress=params.get("compress", True),
+            )
+            return sl.metadata.to_dict()
+        return self._call("slice_operation", op)
 
     def compress_operation(self, params: dict) -> Optional[dict]:
-        return self._request("POST", "compress", body=params)
+        def op():
+            data = params.get("data", "").encode("utf-8")
+            compressed = self._slicer.compress(data)
+            return {"original_bytes": len(data), "compressed_bytes": len(compressed)}
+        return self._call("compress_operation", op)
 
     def ghost_create(self, params: dict) -> Optional[dict]:
-        return self._request("POST", "ghost/create", body=params)
+        def op():
+            sl = self._slicer.build_slice(
+                slice_id=params["slice_id"],
+                domain=params["domain"],
+                records=params.get("records", []),
+                time_start=params["time_start"],
+                time_end=params["time_end"],
+            )
+            entry = self._ghost.create_ghost_copy(sl, params.get("summary", ""))
+            return entry.to_dict()
+        return self._call("ghost_create", op)
 
     def ghost_recall(self, params: dict) -> Optional[dict]:
-        return self._request("POST", "ghost/recall", body=params)
+        def op():
+            return {"results": self._ghost.ai_recall(params["query"], top_k=params.get("top_k", 5))}
+        return self._call("ghost_recall", op)
 
     def health(self) -> dict:
-        result = self._request("GET", "status")
-        return {"reachable": result is not None, "detail": result}
+        return {"reachable": True, "mode": "in-process", "detail": self._state.snapshot()}

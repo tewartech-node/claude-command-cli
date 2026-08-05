@@ -1,12 +1,13 @@
 """Configuration for warnetech-server: host/port, database connection,
-control-plane endpoint, retention/compression defaults, test-harness
-settings, and external security service connectors.
+retention/compression defaults, test-harness settings, and external
+security service connectors.
 
-warnetech-control-plane is treated as an external service reached over
-HTTP (see ARCHITECTURE.md's "Warnetwork Control Plane" entry under Layer 3
-external services), not an in-process import — control_plane_client.py
-speaks to it purely over `control_plane_url`, so this server has no
-dependency on the control plane's own package or its language.
+Per docs/WARNETECH-CANONICAL-WIRING-SPEC.txt decision 1, warnetech-control-plane
+is invoked in-process via direct Python imports, not over HTTP — there is
+no control-plane endpoint to configure here. control_plane_client.py
+constructs warnetech_control_plane's own ControlPlaneConfig directly, which
+reads SUPABASE_URL/SUPABASE_KEY independently (see decision 2: both packages
+point at the same Supabase project via those two environment variables).
 """
 
 from __future__ import annotations
@@ -20,13 +21,6 @@ class DatabaseSettings:
     supabase_url: str = field(default_factory=lambda: os.environ.get("SUPABASE_URL", ""))
     supabase_key: str = field(default_factory=lambda: os.environ.get("SUPABASE_KEY", ""))
     request_timeout_seconds: int = 10
-
-
-@dataclass(frozen=True)
-class ControlPlaneSettings:
-    base_url: str = field(default_factory=lambda: os.environ.get("WARNETECH_CONTROL_PLANE_URL", "http://localhost:8788"))
-    api_key: str = field(default_factory=lambda: os.environ.get("WARNETECH_CONTROL_PLANE_KEY", ""))
-    timeout_seconds: int = 10
 
 
 @dataclass(frozen=True)
@@ -83,7 +77,6 @@ class ServerConfig:
     cli_timeout_seconds: int = 30
 
     database: DatabaseSettings = field(default_factory=DatabaseSettings)
-    control_plane: ControlPlaneSettings = field(default_factory=ControlPlaneSettings)
     retention: RetentionDefaults = field(default_factory=RetentionDefaults)
     compression: CompressionDefaults = field(default_factory=CompressionDefaults)
     test_harness: TestHarnessSettings = field(default_factory=TestHarnessSettings)

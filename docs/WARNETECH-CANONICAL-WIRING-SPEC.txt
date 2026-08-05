@@ -25,8 +25,8 @@ must be invoked locally for maximum speed, security, and simplicity.
 ================================================================================
 
 The Supabase project backing this repository must be the same Supabase
-project used in the earlier WarNet work. No new Supabase project should be
-created. All metrics, signatures, anomalies, partitions, rollups, retention
+project used in the earlier Warnetech work. No new Supabase project should
+be created. All metrics, signatures, anomalies, partitions, rollups, retention
 logs, and historical data must remain in the existing project.
 
 ================================================================================
