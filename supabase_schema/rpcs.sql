@@ -1,20 +1,25 @@
 -- supabase_schema/rpcs.sql
 --
--- IMPORTANT: maintain_partitions() and refresh_metric_rollups() already
--- exist live (see docs' WARNETECH-CANONICAL-WIRING-SPEC.txt task history).
--- Unlike tables.sql's CREATE TABLE IF NOT EXISTS, `create or replace
--- function` here WOULD overwrite the live functions' actual behavior, not
--- just no-op — the versions below are narrower than what is live today:
+-- APPLIED 2026-08-05 against tewartech-project-supabase (dcepcfnnqiwccbnnsdcq),
+-- per explicit approval of exactly this behavior change (unlike tables.sql,
+-- this file's CREATE OR REPLACE FUNCTION statements are not a no-op — they
+-- actually replaced the live functions). The versions below are narrower
+-- than what was live before this migration:
 --
---   maintain_partitions() currently also creates ahead-partitions for
---   threat_events, not only metric_rollups. Replacing it with the version
---   below would silently stop threat_events partition maintenance.
+--   maintain_partitions() previously also created ahead-partitions for
+--   threat_events, not only metric_rollups. Applying this file stopped
+--   that — threat_events partition maintenance is no longer covered by
+--   this RPC. Existing threat_events partitions are unaffected (already
+--   created through October 2026), but nothing will extend that coverage
+--   further ahead unless threat_events support is added back here.
 --
 --   refresh_metric_rollups() below additionally summarizes anomalies,
---   which the live version does not.
+--   which the previous live version did not. Verified live: returns
+--   {"metrics": {...}, "anomalies": {"total_rows": N, "by_severity": {...}}}.
 --
--- migrations.py defaults to a dry run specifically because of this file;
--- do not apply it for real until this behavior change is confirmed.
+-- migrations.py still defaults to a dry run for any future re-application
+-- (e.g. against a different project) — this header records that this
+-- specific approval and application already happened here.
 
 create or replace function public.maintain_partitions()
 returns jsonb

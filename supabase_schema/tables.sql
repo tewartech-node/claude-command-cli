@@ -1,15 +1,13 @@
 -- supabase_schema/tables.sql
 --
--- IMPORTANT: test_results, ai_decisions, and security_events already exist
--- in the live project (tewartech-project-supabase / dcepcfnnqiwccbnnsdcq),
--- created by an earlier migration with a DIFFERENT column set than what
--- follows here (bigint identity ids, not uuid; different column names).
--- CREATE TABLE IF NOT EXISTS is used throughout specifically so this file
--- is safe to run against that project: it will silently do nothing for
--- these three tables rather than error or touch existing data. It matches
--- the requested schema exactly only against a project where these tables
--- do not yet exist. See migrations.py's module docstring for the
--- reconciliation options.
+-- APPLIED 2026-08-05 against tewartech-project-supabase (dcepcfnnqiwccbnnsdcq),
+-- per explicit approval to run only the missing-table portion of this file.
+-- Verified no-op, as expected: test_results, ai_decisions, and
+-- security_events already existed there (created by an earlier migration
+-- in this same project) with a DIFFERENT column set than what follows here
+-- (bigint identity ids, not uuid; different column names) — CREATE TABLE IF
+-- NOT EXISTS left all three untouched. This file matches the schema below
+-- exactly only against a project where these tables do not yet exist.
 
 create extension if not exists pgcrypto;
 
