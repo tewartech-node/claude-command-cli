@@ -7,8 +7,8 @@
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler publish",
-    "test": "jest",
-    "test:integration": "jest --testPathPattern=integration",
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest",
+    "test:integration": "NODE_OPTIONS=--experimental-vm-modules jest --testPathPattern=integration",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

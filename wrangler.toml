@@ -1,0 +1,11 @@
+name = "claude-command-cli"
+main = "worker/index.js"
+compatibility_date = "2024-01-01"
+
+[env.development]
+routes = []
+vars = { ENVIRONMENT = "development" }
+
+[env.production]
+routes = []
+vars = { ENVIRONMENT = "production" }

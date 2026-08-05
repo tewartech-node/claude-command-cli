@@ -1,10 +1,12 @@
 import { validateRequest } from './utils/validate.js';
 import { respondSuccess, respondError } from './utils/respond.js';
+import handlePing from './commands/ping.js';
 import handleAi from './commands/ai.js';
 import handleGh from './commands/gh.js';
 import handleSys from './commands/sys.js';
 
 const COMMAND_HANDLERS = {
+  ping: handlePing,
   ai: handleAi,
   gh: handleGh,
   sys: handleSys,
@@ -28,7 +30,7 @@ async function handleRequest(request, env, ctx) {
   }
 
   // Main command endpoint
-  if (url.pathname === '/api/command' && request.method === 'POST') {
+  if (url.pathname === '/cli' && request.method === 'POST') {
     try {
       const body = await request.json();
 

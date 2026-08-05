@@ -46,7 +46,7 @@ async function validateRequest(body, headers, env) {
       return { ok: false, error: 'Command required' };
     }
 
-    if (!['ai', 'gh', 'sys'].includes(body.command)) {
+    if (!['ping', 'ai', 'gh', 'sys'].includes(body.command)) {
       return { ok: false, error: `Unknown command: ${body.command}` };
     }
 
