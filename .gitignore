@@ -3,7 +3,7 @@ node_modules/
 package-lock.json
 yarn.lock
 
-# Python (warnetech_control_plane/)
+# Python (warnetech_cli/, warnetech_control_plane/, warnetech_server/)
 __pycache__/
 *.py[cod]
 *.egg-info/
