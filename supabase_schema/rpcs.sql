@@ -90,6 +90,22 @@ $function$;
 -- for it; both are idempotent, so running both is harmless, just double
 -- work. Added as its own RPC so a caller can maintain threat_events
 -- partitions without also touching metric_rollups.
+--
+-- Every partition it actually creates is logged as a row in
+-- public.security_events (event_type 'threat_event_partition_created') —
+-- a partition that already exists produces no log row, since nothing
+-- happened. Return type stays `void` (unchanged from the original
+-- version) so this remains a plain CREATE OR REPLACE with no signature
+-- change; migrations.py additionally only applies this specific function
+-- when it does not already exist, so a live deployment's logging is never
+-- silently swapped out from under it.
+--
+-- The insert targets security_events' ACTUAL live column set
+-- (id, event_type, severity, detail, created_at) — verified directly
+-- against tewartech-project-supabase, which differs from the
+-- (event_type, source, details, severity) shape tables.sql documents;
+-- see tables.sql's header comment on that pre-existing divergence.
+-- `source` has no column of its own here, so it's folded into `detail`.
 create or replace function public.maintain_threat_event_partitions()
 returns void
 language plpgsql
@@ -112,6 +128,18 @@ begin
       execute format(
         'create table if not exists public.%I partition of public.threat_events for values from (%L) to (%L)',
         v_partition_name, v_start, v_end
+      );
+
+      insert into public.security_events (event_type, severity, detail)
+      values (
+        'threat_event_partition_created',
+        'low',
+        jsonb_build_object(
+          'source', 'maintain_threat_event_partitions',
+          'partition_name', v_partition_name,
+          'range_start', v_start,
+          'range_end', v_end
+        )
       );
     end if;
   end loop;

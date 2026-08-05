@@ -1,6 +1,6 @@
 """Applies tables.sql and rpcs.sql to the existing Supabase project.
 
-Three safety properties, all load-bearing given this project already has
+Four safety properties, all load-bearing given this project already has
 live data and live callers:
 
 1. Table statements use CREATE TABLE IF NOT EXISTS, so no existing table's
@@ -19,6 +19,13 @@ live data and live callers:
    approved RPCs" — a new function added to rpcs.sql without also being
    added to this set is refused rather than silently applied, so scope
    creep in the SQL file can't slip past review.
+
+4. Functions named in CREATE_ONLY_IF_MISSING below are applied only when
+   pg_proc has no matching function yet — a live deployment (with its own
+   accumulated behavior, e.g. partition-creation logging) is never
+   silently replaced by whatever this file currently defines. This check
+   only runs when dry_run is False, since dry_run promises "no calls to
+   Supabase at all."
 """
 
 from __future__ import annotations
@@ -43,6 +50,15 @@ SAFE_RPC_FUNCTIONS = frozenset({
     "maintain_threat_event_partitions",
 })
 
+# Functions applied only if not already present in pg_proc — see safety
+# property 4 above. maintain_threat_event_partitions() is create-only-if-
+# missing rather than unconditional CREATE OR REPLACE like the rest of
+# SAFE_RPC_FUNCTIONS, so re-running this module never overwrites whatever
+# version is already deployed.
+CREATE_ONLY_IF_MISSING = frozenset({
+    "maintain_threat_event_partitions",
+})
+
 _FUNCTION_NAME_PATTERN = re.compile(
     r"create\s+or\s+replace\s+function\s+(?:public\.)?(\w+)\s*\(", re.IGNORECASE
 )
@@ -59,17 +75,43 @@ def _read_sql(filename: str) -> str:
     return path.read_text(encoding="utf-8")
 
 
-def _unsafe_function_name(statement: str) -> str | None:
-    """Returns the function name if this statement defines a function not
-    in SAFE_RPC_FUNCTIONS, else None. Statements that aren't function
-    definitions (table DDL, RLS grants) always pass — this check only
-    applies to CREATE OR REPLACE FUNCTION.
+def _defined_function_name(statement: str) -> str | None:
+    """Returns the function name a CREATE OR REPLACE FUNCTION statement
+    defines, or None for any other kind of statement (table DDL, RLS
+    grants). Shared by both the SAFE_RPC_FUNCTIONS check and the
+    CREATE_ONLY_IF_MISSING check below.
     """
     match = _FUNCTION_NAME_PATTERN.search(statement)
-    if match is None:
-        return None
-    name = match.group(1)
-    return name if name not in SAFE_RPC_FUNCTIONS else None
+    return match.group(1) if match is not None else None
+
+
+def _unsafe_function_name(statement: str) -> str | None:
+    """Returns the function name if this statement defines a function not
+    in SAFE_RPC_FUNCTIONS, else None.
+    """
+    name = _defined_function_name(statement)
+    return name if name is not None and name not in SAFE_RPC_FUNCTIONS else None
+
+
+def _function_exists(config: SchemaConfig, function_name: str) -> bool:
+    """Live existence check against pg_proc, used only for functions in
+    CREATE_ONLY_IF_MISSING. Fails safe: on any error, treats the function
+    as existing so a check failure skips the statement rather than risking
+    an unwanted overwrite.
+    """
+    try:
+        result = execute_sql_with_retry(
+            config,
+            f"select exists (select 1 from pg_proc where proname = '{function_name}') as fn_exists;",
+        )
+    except SqlExecutionError as exc:
+        logger.error("function existence check failed; assuming it exists", function=function_name, error=str(exc))
+        return True
+
+    rows = result if isinstance(result, list) else result.get("result", result.get("rows", []))
+    if not rows:
+        return True
+    return bool(rows[0].get("fn_exists", True))
 
 
 def apply_file(config: SchemaConfig, filename: str, dry_run: bool | None = None) -> dict:
@@ -89,6 +131,12 @@ def apply_file(config: SchemaConfig, filename: str, dry_run: bool | None = None)
         unsafe_name = _unsafe_function_name(statement)
         if unsafe_name is not None:
             log_migration_step(logger, step_name, "skipped_unsafe", {"function": unsafe_name})
+            skipped += 1
+            continue
+
+        function_name = _defined_function_name(statement)
+        if function_name in CREATE_ONLY_IF_MISSING and not dry_run and _function_exists(config, function_name):
+            log_migration_step(logger, step_name, "skipped_existing", {"function": function_name})
             skipped += 1
             continue
 
