@@ -6,13 +6,13 @@ Prioritized guide for implementing CLI commands and Worker endpoints.
 
 These commands establish the foundation for all future features.
 
-### 1.1 `warnet ping`
+### 1.1 `warnetech ping`
 **Priority**: 🔴 CRITICAL (do first)
 **Purpose**: Verify connectivity between CLI and Worker
 
 **CLI Implementation**:
 ```bash
-warnet ping
+warnetech ping
 ```
 
 **Expected Output**:
@@ -46,13 +46,13 @@ Response:
 
 ---
 
-### 1.2 `warnet gh-open "<repo>"`
+### 1.2 `warnetech gh-open "<repo>"`
 **Priority**: 🔴 CRITICAL (do second)
 **Purpose**: Get Claude link for a GitHub repository
 
 **CLI Implementation**:
 ```bash
-warnet gh-open "tewartech-node/claude-command-cli"
+warnetech gh-open "tewartech-node/claude-command-cli"
 ```
 
 **Expected Output**:
@@ -92,13 +92,13 @@ Response:
 
 ---
 
-### 1.3 `warnet ai "<prompt>"`
+### 1.3 `warnetech ai "<prompt>"`
 **Priority**: 🟠 HIGH (do third)
 **Purpose**: Get AI assistance via NVIDIA Nemotron
 
 **CLI Implementation**:
 ```bash
-warnet ai "explain this code"
+warnetech ai "explain this code"
 ```
 
 **Expected Output**:
@@ -147,13 +147,13 @@ Response:
 
 ---
 
-### 1.4 `warnet gh-push "<message>"`
+### 1.4 `warnetech gh-push "<message>"`
 **Priority**: 🟠 HIGH (do fourth)
 **Purpose**: Commit and push changes to GitHub
 
 **CLI Implementation**:
 ```bash
-warnet gh-push "feat: add new command"
+warnetech gh-push "feat: add new command"
 ```
 
 **Expected Output**:
@@ -198,13 +198,13 @@ Response:
 
 ---
 
-### 1.5 `warnet gh-pull`
+### 1.5 `warnetech gh-pull`
 **Priority**: 🟠 HIGH (do fifth)
 **Purpose**: Pull latest changes from GitHub
 
 **CLI Implementation**:
 ```bash
-warnet gh-pull
+warnetech gh-pull
 ```
 
 **Expected Output**:
@@ -244,7 +244,7 @@ Response:
 
 Once core commands work, add these features.
 
-### 2.1 `warnet fix "<file>"`
+### 2.1 `warnetech fix "<file>"`
 **Priority**: 🟡 MEDIUM
 **Purpose**: Analyze code and suggest fixes
 
@@ -256,7 +256,7 @@ Once core commands work, add these features.
 
 ---
 
-### 2.2 `warnet explain "<file>"`
+### 2.2 `warnetech explain "<file>"`
 **Priority**: 🟡 MEDIUM
 **Purpose**: Generate explanation of code
 
@@ -270,7 +270,7 @@ Once core commands work, add these features.
 
 ## Phase 3: System Commands (Week 5-6)
 
-### 3.1 `warnet status`
+### 3.1 `warnetech status`
 **Priority**: 🟡 MEDIUM
 **Purpose**: Show system status
 
@@ -284,13 +284,13 @@ Quotas:
   Storage: 2.3GB/10GB
 ```
 
-### 3.2 `warnet sync`
+### 3.2 `warnetech sync`
 **Priority**: 🟡 MEDIUM
 **Purpose**: Sync quotas, baselines, signatures
 
 ---
 
-### 3.3 `warnet update`
+### 3.3 `warnetech update`
 **Priority**: 🟡 MEDIUM
 **Purpose**: Update CLI to latest version
 
@@ -309,7 +309,7 @@ After implementing each Phase 1 command:
 
 ### Example Test
 ```javascript
-describe('warnet ping', () => {
+describe('warnetech ping', () => {
   it('sends ping command to worker', async () => {
     const response = await sendCommand('ping');
     expect(response.ok).toBe(true);
@@ -328,33 +328,33 @@ describe('warnet ping', () => {
 ## Implementation Checklist
 
 ### Phase 1: Foundation
-- [ ] **warnet ping**
+- [ ] **warnetech ping**
   - [ ] CLI implementation
   - [ ] Worker endpoint
   - [ ] Request encryption
   - [ ] Response decryption
   - [ ] Tests
   
-- [ ] **warnet gh-open**
+- [ ] **warnetech gh-open**
   - [ ] CLI implementation
   - [ ] Worker endpoint
   - [ ] URL generation
   - [ ] Tests
   
-- [ ] **warnet ai**
+- [ ] **warnetech ai**
   - [ ] CLI implementation
   - [ ] Worker endpoint
   - [ ] Nemotron integration
   - [ ] Error handling
   - [ ] Tests
   
-- [ ] **warnet gh-push**
+- [ ] **warnetech gh-push**
   - [ ] CLI implementation
   - [ ] Git operations
   - [ ] Error handling
   - [ ] Tests
   
-- [ ] **warnet gh-pull**
+- [ ] **warnetech gh-pull**
   - [ ] CLI implementation
   - [ ] Git operations
   - [ ] Error handling
@@ -444,15 +444,15 @@ program
 ### NVIDIA Nemotron
 - Endpoint: `https://integrate.api.nvidia.com/v1/chat/completions`
 - Auth: Bearer token
-- Used by: `warnet ai`, `warnet fix`, `warnet explain`
+- Used by: `warnetech ai`, `warnetech fix`, `warnetech explain`
 
 ### GitHub API
 - Endpoint: `https://api.github.com`
 - Auth: Personal access token
-- Used by: `warnet gh-open`, `warnet gh-push`, `warnet gh-pull`
+- Used by: `warnetech gh-open`, `warnetech gh-push`, `warnetech gh-pull`
 
 ### Warnetwork Control Plane
-- Used by: `warnet status`, `warnet sync`
+- Used by: `warnetech status`, `warnetech sync`
 - Endpoints: TBD
 
 ---
@@ -464,22 +464,22 @@ program
 **Connection Error**:
 ```
 ✗ Error: Failed to connect to Worker
-  Check: warnet ping
-  Retry: warnet ai "prompt" --timeout 60
+  Check: warnetech ping
+  Retry: warnetech ai "prompt" --timeout 60
 ```
 
 **API Key Error**:
 ```
 ✗ Error: API_KEY not found in config
-  Run: warnet init
-  For help: warnet help --error "API_KEY not found"
+  Run: warnetech init
+  For help: warnetech help --error "API_KEY not found"
 ```
 
 **NVIDIA API Error**:
 ```
 ✗ Error: Nemotron API rate limited
   Wait: Try again in a few minutes
-  Check: warnet quota
+  Check: warnetech quota
 ```
 
 **Git Error**:
@@ -494,16 +494,16 @@ program
 ## Progressive Implementation
 
 Follow this order:
-1. ✅ **warnet ping** → Basic connectivity
-2. ✅ **warnet gh-open** → URL generation
-3. ✅ **warnet ai** → AI integration
-4. ✅ **warnet gh-push** → Git push
-5. ✅ **warnet gh-pull** → Git pull
-6. ⏳ **warnet fix** → Code analysis
-7. ⏳ **warnet explain** → Code explanation
-8. ⏳ **warnet status** → System status
-9. ⏳ **warnet sync** → Remote sync
-10. ⏳ **warnet update** → Self-update
+1. ✅ **warnetech ping** → Basic connectivity
+2. ✅ **warnetech gh-open** → URL generation
+3. ✅ **warnetech ai** → AI integration
+4. ✅ **warnetech gh-push** → Git push
+5. ✅ **warnetech gh-pull** → Git pull
+6. ⏳ **warnetech fix** → Code analysis
+7. ⏳ **warnetech explain** → Code explanation
+8. ⏳ **warnetech status** → System status
+9. ⏳ **warnetech sync** → Remote sync
+10. ⏳ **warnetech update** → Self-update
 
 ---
 
@@ -524,17 +524,17 @@ Follow this order:
 
 | Command | Purpose | Status | Priority |
 |---------|---------|--------|----------|
-| `warnet ping` | Check connectivity | Phase 1 | 🔴 |
-| `warnet gh-open` | Get Claude URL | Phase 1 | 🔴 |
-| `warnet ai` | AI assistance | Phase 1 | 🟠 |
-| `warnet gh-push` | Push to GitHub | Phase 1 | 🟠 |
-| `warnet gh-pull` | Pull from GitHub | Phase 1 | 🟠 |
-| `warnet fix` | Fix code | Phase 2 | 🟡 |
-| `warnet explain` | Explain code | Phase 2 | 🟡 |
-| `warnet status` | System status | Phase 3 | 🟡 |
-| `warnet sync` | Sync remote | Phase 3 | 🟡 |
-| `warnet update` | Update CLI | Phase 3 | 🟡 |
+| `warnetech ping` | Check connectivity | Phase 1 | 🔴 |
+| `warnetech gh-open` | Get Claude URL | Phase 1 | 🔴 |
+| `warnetech ai` | AI assistance | Phase 1 | 🟠 |
+| `warnetech gh-push` | Push to GitHub | Phase 1 | 🟠 |
+| `warnetech gh-pull` | Pull from GitHub | Phase 1 | 🟠 |
+| `warnetech fix` | Fix code | Phase 2 | 🟡 |
+| `warnetech explain` | Explain code | Phase 2 | 🟡 |
+| `warnetech status` | System status | Phase 3 | 🟡 |
+| `warnetech sync` | Sync remote | Phase 3 | 🟡 |
+| `warnetech update` | Update CLI | Phase 3 | 🟡 |
 
 ---
 
-**Start with `warnet ping` to establish CLI ↔ Worker communication!**
+**Start with `warnetech ping` to establish CLI ↔ Worker communication!**
