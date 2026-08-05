@@ -1,5 +1,9 @@
 """Connectors for IP/domain/URL reputation services (Malwarebytes, Norton,
 McAfee).
+
+push_reputation_to_control_plane writes directly to Supabase in addition
+to any caller-supplied sink — every push is recorded as an ai_decisions
+row, and high-confidence verdicts also get a security_events row.
 """
 
 from __future__ import annotations
@@ -8,10 +12,13 @@ import time
 from typing import Callable, Optional
 
 from .config import ConnectorsConfig, DEFAULT_CONFIG
+from .database import insert_ai_decision, insert_security_event
 from .logging import get_logger, log_error, log_push_to_control_plane, log_request, log_response
 from .utils import now_iso, request_with_retry
 
 logger = get_logger(__name__)
+
+SECURITY_EVENT_CONFIDENCE_THRESHOLD = 0.7
 
 
 def query_reputation(target: str, source: str = "malwarebytes", config: ConnectorsConfig = DEFAULT_CONFIG) -> dict:
@@ -56,4 +63,10 @@ def push_reputation_to_control_plane(data: list[dict], sink: Optional[Callable[[
     normalized = [d if d.get("normalized_at") else normalize_reputation(d) for d in data]
     delivered = sink(normalized) if sink is not None else 0
     log_push_to_control_plane(logger, "reputation_services", delivered)
+
+    insert_ai_decision("reputation_push", {"record_count": len(normalized)}, {"records": normalized, "delivered": delivered})
+    for record in normalized:
+        if record.get("confidence", 0.0) >= SECURITY_EVENT_CONFIDENCE_THRESHOLD:
+            insert_security_event("reputation_match", record.get("source", "reputation_service"), record, severity=record.get("severity", "medium"))
+
     return {"total": len(normalized), "delivered": delivered, "pushed_at": now_iso()}

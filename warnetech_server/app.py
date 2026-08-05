@@ -99,7 +99,7 @@ class WarnetechServerApp:
         database = ServerDatabase(config)
 
         try:
-            security_intel = SecurityIntelIntegration(config, database)
+            security_intel = SecurityIntelIntegration(config)
         except RuntimeError as exc:
             logger.warning("security intel integration unavailable at startup", reason=str(exc))
             security_intel = None

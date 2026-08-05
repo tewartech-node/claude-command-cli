@@ -4,14 +4,23 @@ relevance ranking, and summarization.
 Operates on whatever intel records the caller has already fetched from
 `warnetech_server.config.SecurityConnectors`-configured endpoints
 (Malwarebytes, HIBP, Norton, McAfee) — this module has no network access of
-its own; fetching is the caller's job, this is purely the merge/rank/summarize
-layer over already-retrieved records.
+its own for *fetching*; that stays the caller's job. It does write
+directly to Supabase, though: `produce_intel_summary` persists an
+ai_decisions row on every call, and `rank_intel_relevance` persists a
+security_events row for each record at or above the relevance threshold —
+per this system's explicit decision to wire persistence into this layer
+rather than route it through warnetech_server.
 """
 
 from __future__ import annotations
 
 from .config import AIControllerConfig, DEFAULT_CONFIG
+from .database import insert_ai_decision, insert_security_event
 from .utils import now_iso
+
+# Ranked intel at or above this score is written to security_events, not
+# just summarized — it's judged worth a human noticing, not only auditing.
+SECURITY_EVENT_RELEVANCE_THRESHOLD = 0.7
 
 
 def merge_intel(intel: list[dict]) -> list[dict]:
@@ -39,6 +48,15 @@ def rank_intel_relevance(intel: list[dict], config: AIControllerConfig = DEFAULT
 
     ranked = [{**record, "relevance_score": score(record)} for record in intel]
     ranked.sort(key=lambda r: r["relevance_score"], reverse=True)
+
+    for record in ranked:
+        if record["relevance_score"] >= SECURITY_EVENT_RELEVANCE_THRESHOLD:
+            insert_security_event(
+                "external_intel_match", record.get("source", "unknown"),
+                {"indicator": record.get("indicator"), "relevance_score": record["relevance_score"]},
+                severity=record.get("severity", "medium"),
+            )
+
     return ranked
 
 
@@ -52,7 +70,7 @@ def produce_intel_summary(intel: list[dict]) -> dict:
         by_source[source] = by_source.get(source, 0) + 1
         by_severity[severity] = by_severity.get(severity, 0) + 1
 
-    return {
+    summary = {
         "total_records": len(merged),
         "raw_record_count": len(intel),
         "duplicates_removed": len(intel) - len(merged),
@@ -60,3 +78,5 @@ def produce_intel_summary(intel: list[dict]) -> dict:
         "by_severity": by_severity,
         "summarized_at": now_iso(),
     }
+    insert_ai_decision("intel_summary", {"raw_record_count": len(intel)}, summary)
+    return summary

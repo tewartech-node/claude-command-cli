@@ -1,34 +1,33 @@
 """Wires warnetech_connectors into warnetech-server: fetches from external
-security connectors, ranks/summarizes the results through
-warnetech_ai_controller.security_intel, and persists what matters to
-Supabase's ai_decisions and security_events tables.
+security connectors and ranks/summarizes the results through
+warnetech_ai_controller.security_intel.
 
 All connector and AI-controller calls are in-process Python imports, same
 wiring philosophy as control_plane_client.py and ai_integration.py (see
 docs/WARNETECH-CANONICAL-WIRING-SPEC.txt decision 1). This module owns no
-connector or ranking logic itself — it only sequences calls and decides
-what's worth persisting.
+connector or ranking logic itself — it only sequences calls.
+
+Persistence to Supabase happens inside warnetech_ai_controller.security_intel
+itself (produce_intel_summary and rank_intel_relevance write directly to
+ai_decisions and security_events), not here — persisting again at this
+layer on top of that would double-write every record. See
+warnetech_ai_controller/security_intel.py's docstring for the persistence
+path.
 """
 
 from __future__ import annotations
 
-from typing import Any, Optional
+from typing import Optional
 
 from .config import ServerConfig
-from .database import ServerDatabase
-from .logging import get_logger, log_ai_interaction, log_security_event
+from .logging import get_logger, log_ai_interaction
 
 logger = get_logger(__name__)
 
-# Ranked intel at or above this relevance score is written to security_events,
-# not just ai_decisions — it's judged worth a human noticing, not only auditing.
-SECURITY_EVENT_RELEVANCE_THRESHOLD = 0.7
-
 
 class SecurityIntelIntegration:
-    def __init__(self, config: ServerConfig, database: Optional[ServerDatabase] = None) -> None:
+    def __init__(self, config: ServerConfig) -> None:
         self._config = config
-        self._database = database
 
         try:
             from warnetech_connectors import intel_feeds, log_aggregators, reputation_services, siem_soar, vuln_databases
@@ -85,8 +84,9 @@ class SecurityIntelIntegration:
     def gather_and_rank_intel(self, intel_sources: list[str], reputation_targets: Optional[list[tuple[str, str]]] = None) -> dict:
         """Fetches from every named intel feed source plus every
         (target, source) reputation lookup, normalizes everything into one
-        list, ranks it through warnetech_ai_controller.controller.
-        integrate_external_intel(), and persists the result.
+        list, and ranks it through warnetech_ai_controller.controller.
+        integrate_external_intel() — which persists the result itself; see
+        this module's docstring.
         """
         raw_records: list[dict] = []
 
@@ -102,31 +102,4 @@ class SecurityIntelIntegration:
 
         ranked = self._ai_controller.integrate_external_intel(raw_records)
         log_ai_interaction(logger, "gather_and_rank_intel", True, {"raw_count": len(raw_records), "ranked_count": len(ranked.get("ranked_intel", []))})
-
-        self._persist(ranked)
         return ranked
-
-    def _persist(self, ranked: dict) -> None:
-        if self._database is None:
-            return
-
-        self._database.persist_ai_decision({
-            "operation": "security_intel_ranking",
-            "input": {"raw_record_count": ranked.get("summary", {}).get("raw_record_count", 0)},
-            "output": ranked.get("summary", {}),
-            "recommendation": None,
-        })
-
-        for record in ranked.get("ranked_intel", []):
-            if record.get("relevance_score", 0.0) >= SECURITY_EVENT_RELEVANCE_THRESHOLD:
-                event = {
-                    "event_type": "external_intel_match",
-                    "severity": record.get("severity", "medium"),
-                    "detail": {
-                        "indicator": record.get("indicator"),
-                        "source": record.get("source"),
-                        "relevance_score": record.get("relevance_score"),
-                    },
-                }
-                self._database.log_security_event(event)
-                log_security_event(logger, event["event_type"], event["severity"], event["detail"])

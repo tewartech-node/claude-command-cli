@@ -5,6 +5,14 @@ Every function here is a thin composition over the specialized modules
 test_analyzer, security_intel) — this module owns no logic of its own
 beyond wiring inputs to the right submodule and shaping the combined
 output. Every function returns a plain, JSON-serializable dict.
+
+suggest_signatures, suggest_defense_strategy, classify_anomaly, and
+analyze_test_results additionally persist their output to Supabase
+(ai_decisions, and security_events where the result is itself
+security-relevant) via database.py — a direct write, not routed through
+warnetech_server, per this system's explicit wiring decision. Persistence
+failures never raise; database.py fails soft, so an outage degrades to
+"the analysis ran but wasn't recorded," not a broken response.
 """
 
 from __future__ import annotations
@@ -13,6 +21,7 @@ from typing import Optional
 
 from . import anomaly_classifier, recall_planner, relevance, security_intel, strategy_engine, test_analyzer
 from .config import AIControllerConfig, DEFAULT_CONFIG
+from .database import insert_ai_decision, insert_security_event
 from .embeddings import generate_slice_embedding
 from .utils import now_iso
 
@@ -73,22 +82,33 @@ def plan_recall(query: dict, config: AIControllerConfig = DEFAULT_CONFIG) -> dic
 
 def suggest_signatures(anomalies: list[dict], config: AIControllerConfig = DEFAULT_CONFIG) -> dict:
     recommendations = strategy_engine.suggest_signature_updates(anomalies, config)
-    return {
+    result = {
         "recommendation_count": len(recommendations),
         "recommendations": recommendations,
         "generated_at": now_iso(),
     }
+    insert_ai_decision("signature_recommendation", {"anomaly_count": len(anomalies)}, result)
+    return result
 
 
 def suggest_defense_strategy(metrics: dict, anomalies: list[dict], config: AIControllerConfig = DEFAULT_CONFIG) -> dict:
-    return strategy_engine.suggest_defense_strategy(metrics, anomalies, intel=None, config=config)
+    result = strategy_engine.suggest_defense_strategy(metrics, anomalies, intel=None, config=config)
+    insert_ai_decision("defense_strategy", {"anomaly_count": len(anomalies)}, result, confidence=result.get("composite_score"))
+    if result.get("posture") == "escalate":
+        insert_security_event("defense_posture_escalation", "ai_controller", result, severity="high")
+    return result
 
 
 def classify_anomaly(event: dict) -> dict:
-    return anomaly_classifier.explain_classification(event)
+    result = anomaly_classifier.explain_classification(event)
+    insert_security_event("anomaly_classified", "ai_controller", result, severity=event.get("severity", "medium"))
+    return result
 
 
 def analyze_test_results(results: list[dict]) -> dict:
+    # test_analyzer.summarize_test_results persists its own ai_decisions
+    # row directly — not duplicated here, same pattern as
+    # integrate_external_intel relying on security_intel.py's own writes.
     return {
         "summary": test_analyzer.summarize_test_results(results),
         "failures": test_analyzer.identify_failures(results),

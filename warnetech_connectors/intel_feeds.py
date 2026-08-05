@@ -1,11 +1,12 @@
 """Connectors for threat intelligence feeds.
 
-Every function returns plain JSON-serializable dicts and never mutates
-production data directly — `push_intel_to_control_plane` accepts a `sink`
-callable the caller supplies (e.g. warnetech_control_plane's anomaly
-buffer) rather than reaching into control-plane internals itself. With no
-sink, it returns the formatted payload without delivering it anywhere, so
-this module stays testable and decoupled from the control plane's shape.
+`push_intel_to_control_plane` accepts an optional `sink` callable for
+delivery to a control-plane buffer (e.g. warnetech_control_plane's anomaly
+buffer), and — per this system's explicit wiring decision — also writes
+directly to Supabase: every push is recorded as an ai_decisions row, and
+records at or above the relevance threshold also get a security_events
+row. This supersedes the module's original "never modifies production
+data directly" design.
 """
 
 from __future__ import annotations
@@ -14,8 +15,14 @@ import time
 from typing import Callable, Optional
 
 from .config import ConnectorsConfig, DEFAULT_CONFIG
+from .database import insert_ai_decision, insert_security_event
 from .logging import get_logger, log_error, log_push_to_control_plane, log_request, log_response
 from .utils import now_iso, request_with_retry
+
+# Records at or above this confidence are also written to security_events,
+# not just recorded as an ai_decision — matches the threshold
+# warnetech_ai_controller.security_intel uses for relevance.
+SECURITY_EVENT_CONFIDENCE_THRESHOLD = 0.7
 
 logger = get_logger(__name__)
 
@@ -66,4 +73,10 @@ def push_intel_to_control_plane(data: list[dict], sink: Optional[Callable[[list[
     normalized = [d if d.get("normalized_at") else normalize_intel(d) for d in data]
     delivered = sink(normalized) if sink is not None else 0
     log_push_to_control_plane(logger, "intel_feeds", delivered)
+
+    insert_ai_decision("intel_feed_push", {"record_count": len(normalized)}, {"records": normalized, "delivered": delivered})
+    for record in normalized:
+        if record.get("confidence", 0.0) >= SECURITY_EVENT_CONFIDENCE_THRESHOLD:
+            insert_security_event("intel_feed_match", record.get("source", "intel_feed"), record, severity=record.get("severity", "medium"))
+
     return {"total": len(normalized), "delivered": delivered, "pushed_at": now_iso()}
