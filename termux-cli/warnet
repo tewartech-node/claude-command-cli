@@ -129,8 +129,30 @@ program
   .command('gh-open <repo>')
   .description('Open GitHub repository in Claude')
   .action(async (repo) => {
-    console.log(`✓ Opening ${repo}...`);
-    // TODO: Implement gh-open command
+    try {
+      const config = await loadConfig();
+      console.log(`> Opening ${repo}...`);
+
+      const { ok, data, error, status } = await sendToWorker('gh', ['open', repo], config);
+
+      if (!ok) {
+        console.log('✗ Error: Failed to generate Claude URL');
+        console.log(`  Reason: ${error || data?.error}`);
+        process.exit(1);
+      }
+
+      const { url, claude_url } = data.data;
+      console.log(`✓ Repository: ${repo}`);
+      console.log(`✓ URL: ${url}`);
+      console.log(`✓ Claude: ${claude_url}`);
+      console.log('');
+      console.log('Copy link to open in Claude:');
+      console.log(claude_url);
+    } catch (error) {
+      console.log('✗ Error: Unexpected error');
+      console.log(`  ${error.message}`);
+      process.exit(1);
+    }
   });
 
 program

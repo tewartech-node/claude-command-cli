@@ -46,8 +46,9 @@ async function validateRequest(body, headers, env) {
       return { ok: false, error: 'Command required' };
     }
 
-    if (!['ping', 'ai', 'gh', 'sys'].includes(body.command)) {
-      return { ok: false, error: `Unknown command: ${body.command}` };
+    const validCommands = ['ping', 'ai', 'gh', 'sys'];
+    if (!validCommands.includes(body.command)) {
+      return { ok: false, error: `Unknown command: ${body.command}. Valid commands: ${validCommands.join(', ')}` };
     }
 
     // TODO: Decrypt request if encrypted

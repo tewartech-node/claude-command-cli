@@ -5,23 +5,28 @@ async function handleGh(args, env) {
     throw new Error('GitHub action required: open|push|pull');
   }
 
-  const action = args[0];
-  const repo = args[1];
+  const subcommand = args[0];
+  const subargs = args.slice(1);
 
-  switch (action) {
+  switch (subcommand) {
     case 'open':
-      return handleGhOpen(repo);
+      return handleGhOpen(subargs[0]);
     case 'push':
-      return handleGhPush(repo, args[2], env);
+      return handleGhPush(subargs[0]);
     case 'pull':
-      return handleGhPull(repo, env);
+      return handleGhPull();
     default:
-      throw new Error(`Unknown action: ${action}`);
+      throw new Error(`Unknown action: ${subcommand}`);
   }
 }
 
 function handleGhOpen(repo) {
-  if (!repo) throw new Error('Repository URL required');
+  if (!repo) throw new Error('Repository name required');
+
+  // Validate repo format (owner/name)
+  if (!repo.includes('/')) {
+    throw new Error('Repository format should be: owner/name');
+  }
 
   const repoUrl = `https://github.com/${repo}`;
   const claudeUrl = `https://claude.ai/new?repo=${encodeURIComponent(repoUrl)}`;
@@ -33,22 +38,22 @@ function handleGhOpen(repo) {
   };
 }
 
-async function handleGhPush(repo, message, env) {
+function handleGhPush(message) {
   if (!message) throw new Error('Commit message required');
 
-  // TODO: Implement GitHub push logic
+  // Git operations should be performed by CLI using git CLI
   return {
-    repo,
     message,
-    pushed: false, // Placeholder
+    status: 'NOT_IMPLEMENTED',
+    note: 'Git operations should be performed by CLI, not Worker',
   };
 }
 
-async function handleGhPull(repo, env) {
-  // TODO: Implement GitHub pull logic
+function handleGhPull() {
+  // Git operations should be performed by CLI using git CLI
   return {
-    repo,
-    pulled: false, // Placeholder
+    status: 'NOT_IMPLEMENTED',
+    note: 'Git operations should be performed by CLI, not Worker',
   };
 }
 
