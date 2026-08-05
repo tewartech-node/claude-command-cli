@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "Termux CLI for Claude with Cloudflare Worker & NVIDIA Nemotron",
   "type": "module",
-  "main": "warnetech_cli_legacy/warnet",
+  "main": "warnetech_cli_legacy/warnetech",
   "scripts": {
     "dev": "wrangler dev",
     "deploy": "wrangler publish",

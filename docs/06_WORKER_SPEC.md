@@ -1,7 +1,7 @@
 # Cloudflare Worker Specification
 
 ## Overview
-The Worker acts as the secure gateway between Termux CLI and external APIs (NVIDIA, GitHub, Warnetwork).
+The Worker acts as the secure gateway between Termux CLI and external APIs (NVIDIA, GitHub, Warnetech).
 
 ## Endpoints
 

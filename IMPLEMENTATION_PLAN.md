@@ -451,7 +451,7 @@ program
 - Auth: Personal access token
 - Used by: `warnetech gh-open`, `warnetech gh-push`, `warnetech gh-pull`
 
-### Warnetwork Control Plane
+### Warnetech Control Plane
 - Used by: `warnetech status`, `warnetech sync`
 - Endpoints: TBD
 

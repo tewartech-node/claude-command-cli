@@ -21,7 +21,7 @@ Layer 2: Cloudflare Worker (Remote)
 ├── Receives encrypted CLI commands
 ├── Authenticates via API_KEY
 ├── Routes to appropriate handler (ai, gh, sys)
-├── Calls external APIs (NVIDIA, GitHub, Warnetwork)
+├── Calls external APIs (NVIDIA, GitHub, Warnetech)
 ├── Returns JSON responses
 └── Manages encryption/decryption
 
@@ -130,7 +130,7 @@ git branch -d feat/feature-name
    };
    ```
 
-3. **Add CLI command in warnetech_cli_legacy/warnet**
+3. **Add CLI command in warnetech_cli_legacy/warnetech**
    ```javascript
    program
      .command('newcmd <arg>')
@@ -145,7 +145,7 @@ git branch -d feat/feature-name
 5. **Test**
    ```bash
    npm test
-   warnet newcmd "test"
+   warnetech newcmd "test"
    ```
 
 ### Adding a New API Integration
@@ -234,8 +234,8 @@ npm test        # Jest
 npm run dev
 
 # Terminal 2: Test CLI commands
-./warnetech_cli_legacy/warnet status
-./warnetech_cli_legacy/warnet ai "test prompt"
+./warnetech_cli_legacy/warnetech status
+./warnetech_cli_legacy/warnetech ai "test prompt"
 ```
 
 ### Deployment
@@ -288,9 +288,9 @@ npm run test:integration
 npm run dev
 
 # In another terminal
-./warnetech_cli_legacy/warnet ai "explain this code"
-./warnetech_cli_legacy/warnet gh-open "tewartech-node/claude-command-cli"
-./warnetech_cli_legacy/warnet status
+./warnetech_cli_legacy/warnetech ai "explain this code"
+./warnetech_cli_legacy/warnetech gh-open "tewartech-node/claude-command-cli"
+./warnetech_cli_legacy/warnetech status
 ```
 
 ## Documentation Maintenance
@@ -312,7 +312,7 @@ Keep these synchronized:
 
 ### Commit Message Format
 ```
-feat: add warnet ai command
+feat: add warnetech ai command
 fix: handle rate limit responses
 refactor: improve encryption utils
 test: add integration tests
@@ -336,10 +336,10 @@ Ask the user (don't just decide) when:
 ### Adding a New Command
 1. Create handler in worker/commands/
 2. Register in COMMAND_HANDLERS
-3. Add CLI command in warnetech_cli_legacy/warnet
+3. Add CLI command in warnetech_cli_legacy/warnetech
 4. Add tests
 5. Document in 05_CLI_COMMANDS.md
-6. Commit: `feat: add warnet <cmd> command`
+6. Commit: `feat: add warnetech <cmd> command`
 
 ### Fixing a Bug
 1. Create feature branch `fix/description`

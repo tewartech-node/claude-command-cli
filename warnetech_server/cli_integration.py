@@ -1,4 +1,4 @@
-"""Bridge to the legacy Node.js CLI (warnetech_cli_legacy/warnet): triggering
+"""Bridge to the legacy Node.js CLI (warnetech_cli_legacy/warnetech): triggering
 its commands from API requests, receiving its outputs, and logging the
 operations.
 
@@ -6,10 +6,10 @@ operations.
 server over its real HTTP API — see warnetech_cli/server_client.py. This
 module exists for the legacy CLI's commands the Python CLI does not have
 (GitHub operations, AI chat, self-evolution): it shells out to the real
-Node.js entrypoint at `config.cli_entrypoint` (`warnetech_cli_legacy/warnet`)
+Node.js entrypoint at `config.cli_entrypoint` (`warnetech_cli_legacy/warnetech`)
 rather than reimplementing its command surface, since the legacy CLI still
 owns its own encryption, config loading, and command parsing (see
-warnetech_cli_legacy/warnet, warnetech_cli_legacy/crypto.js).
+warnetech_cli_legacy/warnetech, warnetech_cli_legacy/crypto.js).
 """
 
 from __future__ import annotations

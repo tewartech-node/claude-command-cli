@@ -1,13 +1,13 @@
 # Automation Plan: Self-Updating CLI
 
 ## Overview
-The `warnet evolve` command enables self-updating through ASAEAI's sandbox synthesis, automated verification, and atomic deployment patterns.
+The `warnetech evolve` command enables self-updating through ASAEAI's sandbox synthesis, automated verification, and atomic deployment patterns.
 
 ## Evolution Architecture
 
 ```
 ┌──────────────────────────────────────────────────┐
-│  User runs: warnet evolve                        │
+│  User runs: warnetech evolve                        │
 └──────────────────────────────────────────────────┘
                       ↓
 ┌──────────────────────────────────────────────────┐
@@ -308,11 +308,11 @@ async function hotReload(patchId, code) {
 
 ---
 
-## warnet evolve Command
+## warnetech evolve Command
 
 ### Usage
 ```bash
-warnet evolve
+warnetech evolve
 ```
 
 ### Options
@@ -456,13 +456,13 @@ Each mutation is tested in isolation before deployment.
 ### Evolution Failed
 ```bash
 # Check status
-warnet status
+warnetech status
 
 # View logs
 tail ~/.claude-cli/logs/evolution.log
 
 # Manual rollback
-warnet evolve --rollback
+warnetech evolve --rollback
 ```
 
 ### Verification Failed

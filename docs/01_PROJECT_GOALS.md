@@ -30,7 +30,7 @@ Build a modular Termux CLI that integrates Cloudflare Workers, NVIDIA Nemotron A
 - Data tier enforcement (Tier 1/2/3)
 - RLS & WORM-compliant logging
 
-### 4. Warnetwork Integration
+### 4. Warnetech Integration
 - D1 cache integration
 - R2 backup support
 - Supabase Postgres 17 connection
@@ -55,7 +55,7 @@ Build a modular Termux CLI that integrates Cloudflare Workers, NVIDIA Nemotron A
 
 ### 7. CLI Evolution
 - Self-updating mechanism (ASAEAI sandbox synthesis)
-- `warnet evolve` command
+- `warnetech evolve` command
 - Hot reload & patch deployment
 - Safe rollback system
 - Automated verification & atomic deployment

@@ -44,7 +44,7 @@ Then merge back to development branch when complete.
 
 ### Examples
 ```
-feat: add warnet ai command for Nemotron integration
+feat: add warnetech ai command for Nemotron integration
 feat: implement AES-256-GCM encryption
 fix: handle rate limit 429 responses
 test: add integration tests for gh-push
@@ -191,7 +191,7 @@ Create CHANGELOG.md entry:
 ## [1.0.1] - 2026-08-05
 
 ### Added
-- warnet ai command for Nemotron integration
+- warnetech ai command for Nemotron integration
 - Streaming support for reasoning tokens
 
 ### Fixed
@@ -218,7 +218,7 @@ npm test
 
 # Test manually
 npm run dev
-warnet ai "test prompt"
+warnetech ai "test prompt"
 ```
 
 ### Review Checklist

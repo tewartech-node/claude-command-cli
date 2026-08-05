@@ -229,7 +229,7 @@ Before deploying to production:
 
 For security vulnerabilities:
 1. Do NOT open public issues
-2. Email: security@warnetwork.dev (placeholder)
+2. Email: security@warnetech.dev (placeholder)
 3. Expected response time: 24 hours
 
 ## Compliance

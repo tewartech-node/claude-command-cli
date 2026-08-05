@@ -24,7 +24,7 @@ worker/
     └── nemotron.js    # NVIDIA API client
 
 warnetech_cli_legacy/
-├── warnet             # Main CLI entrypoint
+├── warnetech             # Main CLI entrypoint
 └── config.json        # Runtime config
 
 scripts/
@@ -71,8 +71,8 @@ try {
 
 ### User-Facing Errors
 - Be specific: not "error" but "API_KEY not found in config"
-- Suggest next steps: "Run: warnet --init"
-- Use Nemotron for complex errors: `warnet help <error>`
+- Suggest next steps: "Run: warnetech --init"
+- Use Nemotron for complex errors: `warnetech help <error>`
 
 ## Cryptography Standards
 
@@ -213,7 +213,7 @@ describe('AES-256-GCM Encryption', () => {
 - Format: `<type>: <description>`
 - Types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`
 - Examples:
-  - `feat: add warnet ai command`
+  - `feat: add warnetech ai command`
   - `fix: AES-256-GCM nonce handling`
   - `test: add integration tests for gh-push`
   - `docs: update architecture diagram`

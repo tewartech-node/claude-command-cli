@@ -7,13 +7,13 @@
 │                    Termux CLI (Node.js)                      │
 │  ┌─────────────────────────────────────────────────────────┐ │
 │  │  Command Router                                          │ │
-│  │  - warnet ai "<prompt>"                                 │ │
-│  │  - warnet fix "<file>"                                  │ │
-│  │  - warnet explain "<file>"                              │ │
-│  │  - warnet gh-open "<repo>"                              │ │
-│  │  - warnet gh-push "<message>"                           │ │
-│  │  - warnet status                                         │ │
-│  │  - warnet evolve                                         │ │
+│  │  - warnetech ai "<prompt>"                                 │ │
+│  │  - warnetech fix "<file>"                                  │ │
+│  │  - warnetech explain "<file>"                              │ │
+│  │  - warnetech gh-open "<repo>"                              │ │
+│  │  - warnetech gh-push "<message>"                           │ │
+│  │  - warnetech status                                         │ │
+│  │  - warnetech evolve                                         │ │
 │  └─────────────────────────────────────────────────────────┘ │
 └─────────────────────────────────────────────────────────────┘
             ↓ (HTTPS + AES-256-GCM)
@@ -79,7 +79,7 @@
 
 ## Component Responsibilities
 
-### warnetech_cli_legacy/warnet
+### warnetech_cli_legacy/warnetech
 - Command parsing & routing
 - Request encryption
 - Config management
@@ -133,4 +133,4 @@ The system supports self-updating via ASAEAI patterns:
 - **Atomic Deployment**: Deploy or rollback as single unit
 - **AST Mutation Engine**: Generate and apply code transformations
 
-Command: `warnet evolve`
+Command: `warnetech evolve`

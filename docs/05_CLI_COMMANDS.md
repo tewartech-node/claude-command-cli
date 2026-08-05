@@ -1,6 +1,6 @@
 # CLI Commands Reference
 
-> **Legacy CLI.** This documents `warnetech_cli_legacy/warnet` (the
+> **Legacy CLI.** This documents `warnetech_cli_legacy/warnetech` (the
 > original Node.js CLI, deprecated but kept for its GitHub, AI-chat, and
 > self-evolution commands). The canonical CLI is now the Python
 > `warnetech_cli` package, which talks to warnetech-server's real HTTP
@@ -8,15 +8,15 @@
 > (`status`, `metrics`, `signatures`, `learn`, `recover`, `slice`,
 > `compress`, `ghost-create`/`ghost-recall`, `retention-apply`/`retention-policy`,
 > `ai-query`/`ai-recall`, `export`/`import`, `server-ping`, `db-check`,
-> `db-sync`). The `warnet <command>` examples below are accurate for the
-> legacy binary's real invocation syntax and are left as-is rather than
-> rewritten to a command name that binary doesn't have.
+> `db-sync`). The `warnetech <command>` examples below document the legacy
+> binary's real invocation syntax (the entrypoint file itself is
+> `warnetech_cli_legacy/warnetech`, not `warnet`).
 
 ## Core Commands
 
-### warnet ai
+### warnetech ai
 ```bash
-warnet ai "<prompt>"
+warnetech ai "<prompt>"
 ```
 Sends a prompt to NVIDIA Nemotron 3 Ultra for AI assistance.
 
@@ -27,8 +27,8 @@ Sends a prompt to NVIDIA Nemotron 3 Ultra for AI assistance.
 
 **Example:**
 ```bash
-warnet ai "explain this code snippet"
-warnet ai "generate a bash script to backup files" --stream
+warnetech ai "explain this code snippet"
+warnetech ai "generate a bash script to backup files" --stream
 ```
 
 **Flow:**
@@ -41,16 +41,16 @@ warnet ai "generate a bash script to backup files" --stream
 
 ---
 
-### warnet fix
+### warnetech fix
 ```bash
-warnet fix "<file_path>"
+warnetech fix "<file_path>"
 ```
 Uses AI to analyze and suggest fixes for a file.
 
 **Example:**
 ```bash
-warnet fix "script.sh"
-warnet fix "src/index.js"
+warnetech fix "script.sh"
+warnetech fix "src/index.js"
 ```
 
 **Flow:**
@@ -62,23 +62,23 @@ warnet fix "src/index.js"
 
 ---
 
-### warnet explain
+### warnetech explain
 ```bash
-warnet explain "<file_path>"
+warnetech explain "<file_path>"
 ```
 Generates explanation for code in a file.
 
 **Example:**
 ```bash
-warnet explain "src/utils/crypto.js"
-warnet explain "worker/index.js"
+warnetech explain "src/utils/crypto.js"
+warnetech explain "worker/index.js"
 ```
 
 ---
 
-### warnet update
+### warnetech update
 ```bash
-warnet update
+warnetech update
 ```
 Updates the CLI to latest version from GitHub.
 
@@ -96,9 +96,9 @@ Updates the CLI to latest version from GitHub.
 
 ---
 
-### warnet status
+### warnetech status
 ```bash
-warnet status
+warnetech status
 ```
 Displays current system status and configuration.
 
@@ -116,54 +116,54 @@ Quotas:
 
 ---
 
-### warnet sync
+### warnetech sync
 ```bash
-warnet sync
+warnetech sync
 ```
 Synchronizes local state with remote (quotas, baselines, signatures).
 
 **Syncs:**
-- Quota information from warnetwork
+- Quota information from warnetech
 - Baseline signatures for anomaly detection
 - Rate limit rules
 - Configuration updates
 
 ---
 
-### warnet help
+### warnetech help
 ```bash
-warnet help [command]
+warnetech help [command]
 ```
 Shows help for commands. Can query AI for complex errors.
 
 **Examples:**
 ```bash
-warnet help
-warnet help ai
-warnet help --error "connection timeout"
+warnetech help
+warnetech help ai
+warnetech help --error "connection timeout"
 ```
 
 ---
 
 ## GitHub Commands
 
-### warnet gh-open
+### warnetech gh-open
 ```bash
-warnet gh-open "<repo>"
+warnetech gh-open "<repo>"
 ```
 Opens GitHub repository in browser or opens Claude with repo context.
 
 **Examples:**
 ```bash
-warnet gh-open "tewartech-node/claude-command-cli"
-warnet gh-open "."  # current directory repo
+warnetech gh-open "tewartech-node/claude-command-cli"
+warnetech gh-open "."  # current directory repo
 ```
 
 ---
 
-### warnet gh-push
+### warnetech gh-push
 ```bash
-warnet gh-push "<commit_message>"
+warnetech gh-push "<commit_message>"
 ```
 Commits and pushes changes to GitHub.
 
@@ -174,7 +174,7 @@ Commits and pushes changes to GitHub.
 
 **Example:**
 ```bash
-warnet gh-push "feat: add warnet ai command"
+warnetech gh-push "feat: add warnetech ai command"
 ```
 
 **Flow:**
@@ -185,9 +185,9 @@ warnet gh-push "feat: add warnet ai command"
 
 ---
 
-### warnet gh-pull
+### warnetech gh-pull
 ```bash
-warnet gh-pull
+warnetech gh-pull
 ```
 Pulls latest changes from remote repository.
 
@@ -199,9 +199,9 @@ Pulls latest changes from remote repository.
 
 ## System Commands
 
-### warnet evolve
+### warnetech evolve
 ```bash
-warnet evolve
+warnetech evolve
 ```
 Self-updates the CLI with new features (ASAEAI synthesis pattern).
 
@@ -221,24 +221,24 @@ Self-updates the CLI with new features (ASAEAI synthesis pattern).
 
 ---
 
-### warnet request-score
+### warnetech request-score
 ```bash
-warnet request-score "<description>"
+warnetech request-score "<description>"
 ```
 Requests AI reinforcement scoring for a task or output.
 
 **Example:**
 ```bash
-warnet request-score "quality of generated code"
+warnetech request-score "quality of generated code"
 ```
 
 ---
 
 ## Configuration Command
 
-### warnet init
+### warnetech init
 ```bash
-warnet init
+warnetech init
 ```
 Initializes ~/.claude-cli/config.json with defaults.
 
@@ -258,28 +258,28 @@ Initializes ~/.claude-cli/config.json with defaults.
 
 ## Advanced Commands
 
-### warnet quota
+### warnetech quota
 ```bash
-warnet quota [check|rollup]
+warnetech quota [check|rollup]
 ```
 **check:** Show current quota usage
 **rollup:** Trigger quota rollup operation
 
 ---
 
-### warnet detect-anomalies
+### warnetech detect-anomalies
 ```bash
-warnet detect-anomalies
+warnetech detect-anomalies
 ```
 Triggers anomaly detection against stored baselines.
 
 ---
 
-### warnet sync-signatures
+### warnetech sync-signatures
 ```bash
-warnet sync-signatures
+warnetech sync-signatures
 ```
-Syncs baseline signatures from warnetwork control plane.
+Syncs baseline signatures from warnetech control plane.
 
 ---
 
@@ -287,7 +287,7 @@ Syncs baseline signatures from warnetwork control plane.
 
 ### Success
 ```bash
-$ warnet ai "hello"
+$ warnetech ai "hello"
 ✓ Prompt sent
 > Processing...
 [AI Response]
@@ -295,14 +295,14 @@ $ warnet ai "hello"
 
 ### Error with AI Explanation
 ```bash
-$ warnet ai "bad prompt"
+$ warnetech ai "bad prompt"
 ✗ Error: Invalid prompt format
-> Would you like AI explanation? Run: warnet help --error "Invalid prompt format"
+> Would you like AI explanation? Run: warnetech help --error "Invalid prompt format"
 ```
 
 ### Status Display
 ```bash
-$ warnet status
+$ warnetech status
 ✓ System Status
   Version: 1.0.0
   Config: ~./claude-cli/config.json
@@ -326,17 +326,17 @@ $ warnet status
 
 ### Piping
 ```bash
-cat file.js | warnet explain -  # read from stdin
-warnet ai "generate script" | tee output.sh
+cat file.js | warnetech explain -  # read from stdin
+warnetech ai "generate script" | tee output.sh
 ```
 
 ### Chaining
 ```bash
-warnet fix "buggy.js" && warnet ai "test this" && warnet gh-push "fix: resolved"
+warnetech fix "buggy.js" && warnetech ai "test this" && warnetech gh-push "fix: resolved"
 ```
 
 ### Background Jobs
 ```bash
-warnet update &  # update in background
-warnet evolve &  # self-update in background
+warnetech update &  # update in background
+warnetech evolve &  # self-update in background
 ```

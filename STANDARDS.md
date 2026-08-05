@@ -144,22 +144,22 @@ These standards apply to `warnetech_cli_legacy/` code.
 ### Command Design
 ```bash
 # ✅ DO: Short, intuitive commands
-warnet ai "prompt"
-warnet fix "file.js"
-warnet gh-push "message"
-warnet status
-warnet help
+warnetech ai "prompt"
+warnetech fix "file.js"
+warnetech gh-push "message"
+warnetech status
+warnetech help
 
 # ❌ DON'T: Complex or ambiguous commands
-warnet artificial-intelligence-prompt-sender "prompt"
-warnet file-repair file.js
-warnet github-push-changes "message"
+warnetech artificial-intelligence-prompt-sender "prompt"
+warnetech file-repair file.js
+warnetech github-push-changes "message"
 ```
 
 ### Output Format
 ```bash
 # ✅ DO: Clean, readable output
-$ warnet status
+$ warnetech status
 ✓ CLI Version: 1.0.0
 ✓ Worker: Connected
 ✓ Quotas: 45/100 API calls (45%)
@@ -179,15 +179,15 @@ Status: OK, Version: 1.0.0, Worker connection: established, etc.
 ### Error Messages
 ```bash
 # ✅ DO: Clear error explanation
-$ warnet ai "prompt"
+$ warnetech ai "prompt"
 ✗ Error: API_KEY not found in config
-  Run: warnet init
-  For help: warnet help --error "API_KEY not found"
+  Run: warnetech init
+  For help: warnetech help --error "API_KEY not found"
 
 # ✅ DO: Suggest next steps
 ✗ Failed to connect to Worker
-  Check: warnet status
-  Retry: warnet ai "prompt" --timeout 60
+  Check: warnetech status
+  Retry: warnetech ai "prompt" --timeout 60
 
 # ❌ DON'T: Cryptic errors
 Error: ECONNREFUSED
@@ -198,8 +198,8 @@ Connection failed
 ### Command Help
 ```bash
 # ✅ DO: Provide clear help
-$ warnet help ai
-Usage: warnet ai "<prompt>"
+$ warnetech help ai
+Usage: warnetech ai "<prompt>"
 
 Send a prompt to Claude (NVIDIA Nemotron) for AI assistance.
 
@@ -209,11 +209,11 @@ Options:
   --model <model>  Specify model (default: nemotron-3-ultra)
 
 Examples:
-  warnet ai "explain this code"
-  warnet ai "generate a bash script" --stream
+  warnetech ai "explain this code"
+  warnetech ai "generate a bash script" --stream
 
 # ❌ DON'T: Minimal or unclear help
-$ warnet help ai
+$ warnetech help ai
 ai - send prompt
 ```
 
@@ -276,7 +276,7 @@ function respondError(message, statusCode = 500) {
 
 usage() {
   cat <<EOF
-Usage: warnet ai "<prompt>"
+Usage: warnetech ai "<prompt>"
 
 Send prompt to Claude for AI assistance.
 
@@ -286,8 +286,8 @@ Options:
   --model MODEL    AI model to use
 
 Examples:
-  warnet ai "explain quantum computing"
-  warnet ai "fix this code" --stream
+  warnetech ai "explain quantum computing"
+  warnetech ai "fix this code" --stream
 
 EOF
 }
@@ -347,8 +347,8 @@ console.log('API Key:', apiKey); // Never!
 ### CLI Mistakes
 ```bash
 # ❌ Unclear commands
-warnet generateaicodefix "file.js"
-warnet gitpushchanges "message"
+warnetech generateaicodefix "file.js"
+warnetech gitpushchanges "message"
 
 # ❌ Poor error output
 Error: connection timeout
@@ -356,7 +356,7 @@ Error: connection timeout
 
 # ❌ No progress feedback
 # User doesn't know what's happening
-warnet ai "prompt"
+warnetech ai "prompt"
 (waits silently for 30 seconds)
 
 # ❌ Inconsistent output
@@ -430,7 +430,7 @@ try {
 ### CLI Error Pattern
 ```bash
 echo "✗ Error: clear explanation"
-echo "  Next step: warnet help command"
+echo "  Next step: warnetech help command"
 exit 1
 ```
 
@@ -502,7 +502,7 @@ export default handleAi;
 
 if [[ ! -f ~/.claude-cli/config.json ]]; then
   echo "✗ Error: Configuration not found"
-  echo "  Run: warnet init"
+  echo "  Run: warnetech init"
   exit 1
 fi
 
@@ -514,7 +514,7 @@ response=$(curl -s -X POST \
 
 if [[ $? -ne 0 ]]; then
   echo "✗ Error: Connection failed"
-  echo "  Check: warnet status"
+  echo "  Check: warnetech status"
   exit 1
 fi
 

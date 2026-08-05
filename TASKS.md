@@ -9,7 +9,7 @@ These are the primary development goals.
 ### 1. Improve the Termux CLI Script
 **Status**: ✅ Phase 1 Complete (Core Features)
 
-**What**: Enhance warnetech_cli_legacy/warnet with full functionality
+**What**: Enhance warnetech_cli_legacy/warnetech with full functionality
 
 **Subtasks**:
 - [x] Implement command parser (Commander.js)
@@ -110,36 +110,36 @@ These are the primary development goals.
   - [ ] Display version info
   - [ ] Show config status
   
-- [ ] `warnet sync` - Sync remote state
+- [ ] `warnetech sync` - Sync remote state
   - [ ] Fetch baselines
   - [ ] Update signatures
   - [ ] Sync quotas
   - [ ] Check for updates
   
-- [ ] `warnet update` - Update CLI
+- [ ] `warnetech update` - Update CLI
   - [ ] Check latest version
   - [ ] Download new version
   - [ ] Verify signature
   - [ ] Atomic replacement
   - [ ] Verify functionality
   
-- [ ] `warnet evolve` - Self-update with AI synthesis
+- [ ] `warnetech evolve` - Self-update with AI synthesis
   - [ ] Synthesis: Generate changes
   - [ ] Verification: Test in sandbox
   - [ ] Deployment: Atomic update
   - [ ] Rollback: Restore if needed
   
-- [ ] `warnet help [cmd]` - Help system
+- [ ] `warnetech help [cmd]` - Help system
   - [ ] Show general help
   - [ ] Show command-specific help
   - [ ] AI-powered error explanation (`--error`)
 
 #### Secondary Commands
-- [ ] `warnet init` - Initialize configuration
-- [ ] `warnet quota` - Quota management
-- [ ] `warnet detect-anomalies` - Security monitoring
-- [ ] `warnet sync-signatures` - Sync baselines
-- [ ] `warnet request-score` - AI reinforcement scoring
+- [ ] `warnetech init` - Initialize configuration
+- [ ] `warnetech quota` - Quota management
+- [ ] `warnetech detect-anomalies` - Security monitoring
+- [ ] `warnetech sync-signatures` - Sync baselines
+- [ ] `warnetech request-score` - AI reinforcement scoring
 
 **Related Docs**:
 - [05_CLI_COMMANDS.md](docs/05_CLI_COMMANDS.md) - Full command reference
@@ -244,7 +244,7 @@ These are the primary development goals.
   - [ ] Returns: `https://claude.ai/new?repo=...`
   
 - [ ] Termux command to open Claude
-  - [ ] `warnet gh-open <repo>` opens Claude
+  - [ ] `warnetech gh-open <repo>` opens Claude
   - [ ] Pre-fills repo context
 
 **Related Docs**:
@@ -258,20 +258,20 @@ These are the primary development goals.
 **Features to Implement**:
 
 #### Code Analysis
-- [ ] `warnet fix "<file>"` - Fix code issues
+- [ ] `warnetech fix "<file>"` - Fix code issues
   - [ ] Read file
   - [ ] Send to Nemotron with diagnostic prompt
   - [ ] Parse response for fixes
   - [ ] Display issues & suggestions
   - [ ] Option to apply (with backup)
   
-- [ ] `warnet explain "<file>"` - Explain code
+- [ ] `warnetech explain "<file>"` - Explain code
   - [ ] Read file
   - [ ] Generate explanation prompt
   - [ ] Call Nemotron
   - [ ] Display formatted explanation
   
-- [ ] `warnet help --error "<message>"` - Error explanation
+- [ ] `warnetech help --error "<message>"` - Error explanation
   - [ ] Send error to Nemotron
   - [ ] Get explanation & solution
   - [ ] Display troubleshooting steps
@@ -536,7 +536,7 @@ export default handleNewcmd;
 **Week 7-8**: Advanced Features
 - Hot reload system
 - AST mutation engine
-- Self-update (warnet evolve)
+- Self-update (warnetech evolve)
 - Rollback capability
 
 **Week 9-10**: Testing & Deployment

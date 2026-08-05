@@ -9,7 +9,7 @@
 // name: nothing here should be treated as the primary CLI going forward.
 //
 // Termux CLI - Main entrypoint
-// Usage: warnet <command> [args...]
+// Usage: warnetech <command> [args...]
 
 import { Command } from 'commander';
 import { readFileSync } from 'fs';

@@ -3,7 +3,7 @@
 ## Phase 1: Foundation (Weeks 1-2)
 
 ### 1.1 Termux CLI Base
-- [ ] Create CLI entrypoint (warnet command)
+- [ ] Create CLI entrypoint (warnetech command)
 - [ ] Implement command parser
 - [ ] Add config manager for ~/.claude-cli/config.json
 - [ ] Create basic error handling
@@ -29,11 +29,11 @@
 ## Phase 2: Core Features (Weeks 3-4)
 
 ### 2.1 CLI Commands
-- [ ] Implement `warnet ai "<prompt>"`
-- [ ] Implement `warnet fix "<file>"`
-- [ ] Implement `warnet explain "<file>"`
-- [ ] Implement `warnet status`
-- [ ] Implement `warnet help`
+- [ ] Implement `warnetech ai "<prompt>"`
+- [ ] Implement `warnetech fix "<file>"`
+- [ ] Implement `warnetech explain "<file>"`
+- [ ] Implement `warnetech status`
+- [ ] Implement `warnetech help`
 
 ### 2.2 Worker Command Handlers
 - [ ] Create worker/commands/ai.js
@@ -48,9 +48,9 @@
 - [ ] Add prompt optimization
 
 ### 2.4 GitHub Integration
-- [ ] Implement `warnet gh-open "<repo>"`
-- [ ] Implement `warnet gh-push "<message>"`
-- [ ] Implement `warnet gh-pull`
+- [ ] Implement `warnetech gh-open "<repo>"`
+- [ ] Implement `warnetech gh-push "<message>"`
+- [ ] Implement `warnetech gh-pull`
 - [ ] Create GitHub API client
 
 ## Phase 3: Infrastructure (Weeks 5-6)
@@ -67,7 +67,7 @@
 - [ ] Create audit log tables
 - [ ] Set up WORM storage patterns
 
-### 3.3 Warnetwork Control Plane
+### 3.3 Warnetech Control Plane
 - [ ] Implement quota checking
 - [ ] Implement rollup triggers
 - [ ] Implement anomaly detection
@@ -82,8 +82,8 @@
 ## Phase 4: Advanced Features (Weeks 7-8)
 
 ### 4.1 CLI Expansion
-- [ ] Implement `warnet update` command
-- [ ] Implement `warnet sync` command
+- [ ] Implement `warnetech update` command
+- [ ] Implement `warnetech sync` command
 - [ ] Create modular command loader
 - [ ] Add Nemotron-powered error explanations
 
@@ -94,13 +94,13 @@
 - [ ] Set up GitHub Actions workflow
 
 ### 4.3 Evolution System
-- [ ] Implement `warnet evolve` command
+- [ ] Implement `warnetech evolve` command
 - [ ] Create AST mutation engine
 - [ ] Implement hot reload endpoints
 - [ ] Build rollback system
 
 ### 4.4 Additional Commands
-- [ ] Implement `warnet request-score` (AI reinforcement)
+- [ ] Implement `warnetech request-score` (AI reinforcement)
 - [ ] Add ASAEAI hierarchical integration
 - [ ] Create worker/utils/respond.js
 - [ ] Build help system

@@ -8,11 +8,11 @@
 │  ┌───────────────────────────────────────────────────────────┐  │
 │  │              LAYER 1: TERMUX CLI (Local)                  │  │
 │  │                                                            │  │
-│  │  $ warnet ai "explain this code"                          │  │
-│  │  $ warnet gh-push "feat: new feature"                     │  │
-│  │  $ warnet status                                          │  │
+│  │  $ warnetech ai "explain this code"                          │  │
+│  │  $ warnetech gh-push "feat: new feature"                     │  │
+│  │  $ warnetech status                                          │  │
 │  │                                                            │  │
-│  │  ├─ warnetech_cli_legacy/warnet (Node.js/Bash)                     │  │
+│  │  ├─ warnetech_cli_legacy/warnetech (Node.js/Bash)                     │  │
 │  │  ├─ Config: ~/.claude-cli/config.json                    │  │
 │  │  ├─ Sends encrypted requests (AES-256-GCM)              │  │
 │  │  ├─ Receives JSON responses                              │  │
@@ -64,7 +64,7 @@
 │  │  ├─ NVIDIA Nemotron API                                  │  │
 │  │  │  └─ AI-powered responses                              │  │
 │  │  │                                                         │  │
-│  │  ├─ Warnetwork Control Plane                             │  │
+│  │  ├─ Warnetech Control Plane                             │  │
 │  │  │  ├─ Quota monitoring                                  │  │
 │  │  │  ├─ Anomaly detection                                 │  │
 │  │  │  └─ Baseline signatures                               │  │
@@ -79,7 +79,7 @@
 
 ### Request Flow (CLI → Worker)
 ```
-1. User types: warnet ai "explain code"
+1. User types: warnetech ai "explain code"
 2. CLI reads ~/.claude-cli/config.json
 3. CLI encrypts request (AES-256-GCM)
 4. CLI sends HTTPS POST to Worker
@@ -119,7 +119,7 @@
 
 ### Layer 1: CLI (warnetech_cli_legacy/)
 ```
-warnet (main entrypoint)
+warnetech (main entrypoint)
 ├─ Commands:
 │  ├─ ai <prompt>         → Send to AI
 │  ├─ fix <file>          → Fix code
@@ -222,7 +222,7 @@ External Services
 │  ├─ Push/pull operations
 │  └─ Release management
 │
-├─ Warnetwork Control Plane
+├─ Warnetech Control Plane
 │  ├─ Quota monitoring
 │  ├─ Anomaly detection
 │  └─ Signature management
@@ -300,7 +300,7 @@ TIER_3: Public
 ```
 Local Machine
 ├─ npm run dev (Worker dev server)
-├─ ./warnetech_cli_legacy/warnet (CLI testing)
+├─ ./warnetech_cli_legacy/warnetech (CLI testing)
 └─ npm test (Local testing)
 ```
 
@@ -327,7 +327,7 @@ Cloudflare Edge (Production)
 
 ### Adding Features
 The architecture supports:
-- ✅ New CLI commands (add to warnetech_cli_legacy/warnet)
+- ✅ New CLI commands (add to warnetech_cli_legacy/warnetech)
 - ✅ New Worker handlers (add to worker/commands/)
 - ✅ New API integrations (add to worker/utils/)
 - ✅ New security checks (enhance worker/utils/validate.js)

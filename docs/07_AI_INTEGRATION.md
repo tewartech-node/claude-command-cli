@@ -62,7 +62,7 @@ Authorization: Bearer <NVIDIA_API_KEY>
 
 ## Commands Using Nemotron
 
-### warnet ai "<prompt>"
+### warnetech ai "<prompt>"
 **System Prompt:**
 ```
 You are Claude, an AI assistant for the Warnetech command-line system.
@@ -87,7 +87,7 @@ For errors, explain the root cause and solution.
 
 ---
 
-### warnet fix "<file_path>"
+### warnetech fix "<file_path>"
 **System Prompt:**
 ```
 Analyze the provided code and:
@@ -105,7 +105,7 @@ Focus on:
 
 **Example:**
 ```bash
-$ warnet fix "buggy_script.sh"
+$ warnetech fix "buggy_script.sh"
 ✓ Analyzing script.sh...
 
 Issues Found:
@@ -123,7 +123,7 @@ Apply fixes? (y/n)
 
 ---
 
-### warnet explain "<file_path>"
+### warnetech explain "<file_path>"
 **System Prompt:**
 ```
 Explain the provided code in detail:
@@ -139,10 +139,10 @@ Break down complex concepts.
 
 ---
 
-### warnet help --error "<error_message>"
+### warnetech help --error "<error_message>"
 **System Prompt:**
 ```
-A user encountered an error in the Warnet CLI system:
+A user encountered an error in the Warnetech CLI system:
 "${error_message}"
 
 Provide:
@@ -155,10 +155,10 @@ Provide:
 
 **Example:**
 ```bash
-$ warnet ai "some prompt" && echo OK
+$ warnetech ai "some prompt" && echo OK
 ✗ Error: connection timeout
 
-$ warnet help --error "connection timeout"
+$ warnetech help --error "connection timeout"
 ✓ AI Troubleshooting: Connection Timeout
 
 Explanation:
@@ -172,14 +172,14 @@ Common Causes:
 
 Troubleshooting:
 1. Check connection: ping 8.8.8.8
-2. Check Worker: warnet status
-3. Check quotas: warnet quota check
-4. Retry: warnet ai "..." --timeout 60
+2. Check Worker: warnetech status
+3. Check quotas: warnetech quota check
+4. Retry: warnetech ai "..." --timeout 60
 
 Prevention:
 - Use --stream for long operations
 - Use --timeout based on expected duration
-- Monitor quotas with: warnet quota check
+- Monitor quotas with: warnetech quota check
 ```
 
 ---
@@ -209,7 +209,7 @@ data: [DONE]
 
 **CLI Implementation:**
 ```bash
-warnet ai "explain quantum computing" --stream
+warnetech ai "explain quantum computing" --stream
 > Starting stream...
 The first step in understanding quantum computing is...
 [reasoning tokens displayed in real-time]
@@ -275,7 +275,7 @@ When a command fails, offer AI-powered explanation.
 **Flow:**
 1. Command fails with error message
 2. CLI catches error
-3. CLI offers: `Run 'warnet help --error "message"' for explanation`
+3. CLI offers: `Run 'warnetech help --error "message"' for explanation`
 4. User accepts or declines
 5. If yes, send error to Worker
 6. Worker calls NVIDIA with error context
@@ -283,11 +283,11 @@ When a command fails, offer AI-powered explanation.
 
 **Example:**
 ```bash
-$ warnet gh-push "fix: bug"
+$ warnetech gh-push "fix: bug"
 ✗ Error: Repository not found
 The repository at origin may have been deleted or made private.
 
-Get help: warnet help --error "Repository not found"
+Get help: warnetech help --error "Repository not found"
 ```
 
 ---
