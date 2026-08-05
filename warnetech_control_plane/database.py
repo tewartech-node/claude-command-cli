@@ -87,6 +87,16 @@ class SupabaseDatabase:
         )
         return result[0] if result else None
 
+    def log_security_event(self, event: dict) -> bool:
+        """Used by retention_engine to record ghost-tier transitions —
+        there is no dedicated ghost_log table, so ghost creation events log
+        here per the same pattern warnetech_server/database.py uses.
+        """
+        result = self._request("POST", "security_events", body=[event])
+        ok = result is not None
+        logger.info("security event logged", event_type=event.get("event_type"), ok=ok)
+        return ok
+
     # -- RPC (complex analytics run as Postgres functions) -------------------
 
     def call_rpc(self, function_name: str, args: dict) -> Any:

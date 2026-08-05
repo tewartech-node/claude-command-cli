@@ -45,6 +45,7 @@ class ControlPlaneClient:
         # of warnetech_server's own ServerConfig.database — per wiring spec
         # decision 2, both point at the same Supabase project via those two
         # environment variables, so no explicit passthrough is needed here.
+        self._wcp = wcp
         cp_config = wcp.ControlPlaneConfig()
         self._cp_config = cp_config
         self._state = wcp.ControlPlaneState(cp_config)
@@ -54,7 +55,7 @@ class ControlPlaneClient:
         self._scoring = wcp.ScoringEngine(cp_config)
         self._learning = wcp.LearningEngine(self._state, self._signatures, cp_config)
         self._recovery = wcp.RecoveryEngine(self._state, self._signatures, self._database, cp_config)
-        self._retention = wcp.RetentionEngine(cp_config)
+        self._retention = wcp.RetentionEngine(cp_config, database=self._database)
         self._slicer = wcp.SliceEngine(cp_config)
         self._ghost = wcp.GhostEngine(cp_config)
 
@@ -168,6 +169,12 @@ class ControlPlaneClient:
         return self._call("compress_operation", op)
 
     def ghost_create(self, params: dict) -> Optional[dict]:
+        """Accepts slice identifiers/metadata (`slice_id`, `domain`,
+        `records`, `time_start`, `time_end`); slicer.build_slice() both
+        slices and compresses in one call (compress=True by default), so
+        the resulting Slice.body is already the compressed payload
+        ghost_engine.create_ghost_copy() expects.
+        """
         def op():
             sl = self._slicer.build_slice(
                 slice_id=params["slice_id"],
@@ -175,15 +182,52 @@ class ControlPlaneClient:
                 records=params.get("records", []),
                 time_start=params["time_start"],
                 time_end=params["time_end"],
+                compress=params.get("compress", True),
             )
-            entry = self._ghost.create_ghost_copy(sl, params.get("summary", ""))
-            return entry.to_dict()
+            record = self._wcp.create_ghost_copy(
+                sl.metadata, sl.body, config=self._cp_config,
+                encryption_key_id=params.get("encryption_key_id"),
+            )
+            stored = self._wcp.store_ghost_copy(record, config=self._cp_config)
+            return {"ghost_id": record.id, "stored": stored, "record": record.to_dict()}
         return self._call("ghost_create", op)
 
     def ghost_recall(self, params: dict) -> Optional[dict]:
+        """Accepts either a `ghost_id` (direct fetch) or a `query` dict of
+        filter fields (`system`, `type`, `time_start`, `time_end`) matched
+        against the ghost index. Every candidate returned has already been
+        through verify_ghost_integrity() — routes.py hands the result
+        straight to warnetech_ai_controller for recall planning without
+        needing to re-verify anything itself.
+        """
         def op():
-            return {"results": self._ghost.ai_recall(params["query"], top_k=params.get("top_k", 5))}
+            ghost_id = params.get("ghost_id")
+            if ghost_id:
+                fetched = self._wcp.fetch_ghost_copy(ghost_id, config=self._cp_config)
+                if fetched is None:
+                    return None
+                integrity = self._wcp.verify_ghost_integrity(ghost_id, config=self._cp_config)
+                return {
+                    "mode": "direct",
+                    "ghost_id": ghost_id,
+                    "record": fetched["record"],
+                    "payload_b64": fetched["payload_b64"],
+                    "integrity": integrity,
+                }
+
+            filter_params = params.get("query") or {}
+            candidates = self._wcp.list_ghost_copies(filter_params, config=self._cp_config)
+            verified = []
+            for candidate in candidates:
+                integrity = self._wcp.verify_ghost_integrity(candidate["id"], config=self._cp_config)
+                verified.append({**candidate, "integrity_valid": integrity["valid"]})
+            return {"mode": "query", "query": filter_params, "candidates": verified, "candidate_count": len(verified)}
         return self._call("ghost_recall", op)
+
+    def list_ghost_copies(self, filter_params: Optional[dict] = None) -> list[dict]:
+        def op():
+            return self._wcp.list_ghost_copies(filter_params or {}, config=self._cp_config)
+        return self._call("list_ghost_copies", op) or []
 
     def health(self) -> dict:
         return {"reachable": True, "mode": "in-process", "detail": self._state.snapshot()}

@@ -34,7 +34,16 @@ from .anomaly_engine import Anomaly, AnomalyEngine
 from .behavior_engine import BehaviorEngine
 from .config import ControlPlaneConfig, DEFAULT_CONFIG
 from .database import SupabaseDatabase
-from .ghost_engine import GhostEngine, GhostIndexEntry
+from .ghost_engine import (
+    GhostEngine,
+    GhostIndexEntry,
+    GhostRecord,
+    create_ghost_copy,
+    fetch_ghost_copy,
+    list_ghost_copies,
+    store_ghost_copy,
+    verify_ghost_integrity,
+)
 from .learning_engine import LearningEngine, ThresholdAdaptation
 from .logging import get_logger
 from .metrics_engine import MetricRollup, MetricsEngine
@@ -56,6 +65,12 @@ __all__ = [
     "SupabaseDatabase",
     "GhostEngine",
     "GhostIndexEntry",
+    "GhostRecord",
+    "create_ghost_copy",
+    "fetch_ghost_copy",
+    "list_ghost_copies",
+    "store_ghost_copy",
+    "verify_ghost_integrity",
     "LearningEngine",
     "ThresholdAdaptation",
     "get_logger",

@@ -126,3 +126,45 @@ class ServerDatabase:
 
     def health(self) -> dict:
         return {"configured": self._available}
+
+    # -- ghost copies -----------------------------------------------------------------
+    #
+    # No dedicated ghost_log table exists in supabase_schema/tables.sql, so
+    # per explicit direction these route to security_events (operational
+    # events) and ai_decisions (recall-planning output) instead of a new table.
+
+    def log_ghost_creation(self, ghost_result: dict) -> bool:
+        record = ghost_result.get("record", {}) if ghost_result else {}
+        return self.log_security_event({
+            "event_type": "ghost_copy_created",
+            "source": "warnetech_server",
+            "details": {
+                "ghost_id": (ghost_result or {}).get("ghost_id"),
+                "system": record.get("system"),
+                "type": record.get("type"),
+                "size": record.get("size"),
+            },
+            "severity": "low",
+        })
+
+    def log_ghost_recall(self, query: dict, fetch_result: dict, plan: Optional[dict] = None) -> bool:
+        fetch_result = fetch_result or {}
+        return self.log_security_event({
+            "event_type": "ghost_copy_recalled",
+            "source": "warnetech_server",
+            "details": {
+                "mode": fetch_result.get("mode"),
+                "ghost_id": fetch_result.get("ghost_id"),
+                "candidate_count": fetch_result.get("candidate_count"),
+                "selected_ghost_count": (plan or {}).get("selected_ghost_count"),
+            },
+            "severity": "low",
+        })
+
+    def store_ghost_metrics(self, metrics: dict) -> Optional[dict]:
+        return self.persist_ai_decision({
+            "decision_type": "ghost_metrics",
+            "input": {},
+            "output": metrics,
+            "confidence": None,
+        })

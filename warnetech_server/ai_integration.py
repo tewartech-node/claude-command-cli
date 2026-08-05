@@ -79,6 +79,22 @@ class AIIntegration:
 
     # -- AI-assisted defense strategy ------------------------------------------------------
 
+    # -- ghost copy recall ------------------------------------------------------------------
+
+    def ghost_recall_plan(
+        self, ghost_copies: list[dict], query_embedding: Optional[list[float]] = None,
+        query_params: Optional[dict] = None,
+    ) -> dict:
+        query = {"ghost_copies": ghost_copies, "query_embedding": query_embedding, **(query_params or {})}
+        plan = self._controller.plan_recall_from_ghost(query)
+        log_ai_interaction(logger, "ghost_recall_plan", True, {"selected": plan.get("selected_ghost_count", 0)})
+        return plan
+
+    def summarize_ghost_copies(self, ghost_list: list[dict]) -> dict:
+        summary = self._controller.summarize_ghost_copies(ghost_list)
+        log_ai_interaction(logger, "summarize_ghost_copies", True, {"count": summary.get("total_ghost_copies", 0)})
+        return summary
+
     def assisted_defense_strategy(self, available_slices: list[dict], total_data_size: int) -> dict[str, Any]:
         """Combines importance analysis and a recall plan into one
         recommendation, used by routes.post_ai_query() when the caller

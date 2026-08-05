@@ -105,15 +105,41 @@ def post_compress(req: Request, deps: ServerDependencies) -> Response:
 
 
 def post_ghost_create(req: Request, deps: ServerDependencies) -> Response:
+    """Accepts slice identifiers/metadata; control_plane.ghost_create()
+    builds+compresses the slice via slice_engine and stores it as a ghost
+    copy via ghost_engine.create_ghost_copy()/store_ghost_copy(). Creation
+    is logged regardless of AI availability — ghost copies must be
+    recorded even when the AI layer is down.
+    """
     body = validate_json_body(req.json_body or {})
     result = deps.control_plane.ghost_create(body)
+    if result is not None:
+        deps.database.log_ghost_creation(result)
     return Response(status=200 if result is not None else 502, body={"result": result})
 
 
 def post_ghost_recall(req: Request, deps: ServerDependencies) -> Response:
-    body = validate_json_body(req.json_body or {}, required_fields=("query",))
-    result = deps.control_plane.ghost_recall(body)
-    return Response(status=200 if result is not None else 502, body={"result": result})
+    """Accepts either `ghost_id` (direct fetch) or `query` (filter fields
+    for candidate matching). control_plane.ghost_recall() already runs
+    fetch_ghost_copy()/verify_ghost_integrity() for every candidate; this
+    handler's own job is handing that metadata (and payload, for a direct
+    fetch) to warnetech_ai_controller for recall planning.
+    """
+    body = validate_json_body(req.json_body or {})
+    fetch_result = deps.control_plane.ghost_recall(body)
+    if fetch_result is None:
+        return Response(status=502, body={"error": "ghost_recall_failed"})
+
+    ghost_copies = [fetch_result["record"]] if fetch_result.get("mode") == "direct" else fetch_result.get("candidates", [])
+
+    summary = None
+    plan = None
+    if deps.ai is not None:
+        summary = deps.ai.summarize_ghost_copies(ghost_copies)
+        plan = deps.ai.ghost_recall_plan(ghost_copies, body.get("query_embedding"), body.get("query"))
+
+    deps.database.log_ghost_recall(body, fetch_result, plan)
+    return Response(status=200, body={"result": fetch_result, "summary": summary, "recall_plan": plan})
 
 
 def post_retention_apply(req: Request, deps: ServerDependencies) -> Response:

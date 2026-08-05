@@ -124,3 +124,52 @@ def integrate_external_intel(intel: list[dict], config: AIControllerConfig = DEF
         "summary": summary,
         "ranked_intel": ranked,
     }
+
+
+_GHOST_RECALL_HOUSEKEEPING_KEYS = ("ghost_copies", "query_embedding")
+
+
+def plan_recall_from_ghost(query: dict, config: AIControllerConfig = DEFAULT_CONFIG) -> dict:
+    """`query` carries `ghost_copies` (the candidate list — typically
+    warnetech_server's control_plane_client.list_ghost_copies() output,
+    each a ghost_engine.GhostRecord dict) and optionally `query_embedding`
+    for similarity ranking. Thin wrapper over recall_planner.plan_ghost_recall,
+    matching plan_recall()'s shape for plain slices above.
+    """
+    ghost_copies = query.get("ghost_copies", [])
+    query_embedding = query.get("query_embedding")
+    plan = recall_planner.plan_ghost_recall(ghost_copies, query_embedding, config)
+    plan["query"] = {k: v for k, v in query.items() if k not in _GHOST_RECALL_HOUSEKEEPING_KEYS}
+    insert_ai_decision("ghost_recall_plan", {"ghost_copy_count": len(ghost_copies)}, plan)
+    return plan
+
+
+def summarize_ghost_copies(ghost_list: list[dict], config: AIControllerConfig = DEFAULT_CONFIG) -> dict:
+    """Produces counts-by-system/type, total size, and time span for a set
+    of ghost copies — the context /ghost/recall hands the AI controller
+    alongside plan_recall_from_ghost() so a caller doesn't have to re-derive
+    it from the raw list.
+    """
+    total_size = sum(g.get("size", 0) for g in ghost_list)
+    by_system: dict[str, int] = {}
+    by_type: dict[str, int] = {}
+    for g in ghost_list:
+        system = g.get("system", "unknown")
+        ghost_type = g.get("type", "unknown")
+        by_system[system] = by_system.get(system, 0) + 1
+        by_type[ghost_type] = by_type.get(ghost_type, 0) + 1
+
+    starts = [r["start"] for g in ghost_list if (r := g.get("time_range") or {}).get("start")]
+    ends = [r["end"] for g in ghost_list if (r := g.get("time_range") or {}).get("end")]
+
+    summary = {
+        "total_ghost_copies": len(ghost_list),
+        "total_size": total_size,
+        "by_system": by_system,
+        "by_type": by_type,
+        "earliest_time": min(starts) if starts else None,
+        "latest_time": max(ends) if ends else None,
+        "summarized_at": now_iso(),
+    }
+    insert_ai_decision("ghost_copy_summary", {"ghost_copy_count": len(ghost_list)}, summary)
+    return summary
