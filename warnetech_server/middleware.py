@@ -3,11 +3,16 @@ validation, structured logging, error handling, and security headers.
 
 Middlewares compose around a route handler as a chain, outermost first:
 
-    error_handling(security_headers(logging(rate_limit(auth(validate(handler))))))
+    error_handling(security_headers(logging(rate_limit(
+        validate(envelope(auth(handler)))))))
 
 so an auth failure is logged and rate-limited exactly like a success, and
 any exception anywhere in the chain still gets security headers and a safe
 JSON error body rather than a raw traceback.
+
+The envelope layer sits between validation and auth: the body must parse as
+JSON before it can be recognised as an envelope, and it must be decrypted
+before auth or any route sees the cleartext it carries.
 """
 
 from __future__ import annotations
@@ -16,6 +21,8 @@ import threading
 import time
 from dataclasses import dataclass, field
 from typing import Callable, Optional
+
+from warnetech_envelope import EnvelopeError, is_envelope, seal, unseal
 
 from .auth import authenticate
 from .config import ServerConfig
@@ -101,7 +108,35 @@ def build_middleware_chain(config: ServerConfig, rate_limiter: RateLimiter, hand
                 req.json_body = json.loads(req.body.decode("utf-8"))
         except (ValidationError, ValueError) as exc:
             return Response(status=400, body={"error": "invalid_request", "detail": str(exc)})
-        return with_auth(req)
+        return with_envelope(req)
+
+    def with_envelope(req: Request) -> Response:
+        """Open a sealed request body, and seal the reply symmetrically.
+
+        Fail-closed: a body that presents itself as an envelope but does not
+        open is rejected outright rather than falling through as plaintext,
+        so a wrong key or a tampered packet cannot degrade the channel.
+        """
+        sealed = is_envelope(req.json_body)
+        if sealed:
+            api_key = config.api_key or ""
+            try:
+                req.json_body = unseal(req.json_body, api_key)
+            except EnvelopeError as exc:
+                log_security_event(
+                    logger, "envelope_open_failure", "high", {"path": req.path, "reason": str(exc)}
+                )
+                return Response(status=400, body={"error": "invalid_envelope"})
+
+        response = with_auth(req)
+
+        if sealed:
+            try:
+                response.body = seal(response.body, config.api_key or "")
+            except EnvelopeError as exc:
+                logger.error("envelope seal failed", path=req.path, error=str(exc))
+                return Response(status=500, body={"error": "internal_error"})
+        return response
 
     def with_rate_limit(req: Request) -> Response:
         key = req.headers.get("authorization", req.remote_addr)

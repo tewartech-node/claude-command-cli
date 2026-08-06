@@ -7,6 +7,7 @@ import json
 import os
 from pathlib import Path
 from typing import Any, Dict, Optional
+from urllib.parse import urlparse
 
 
 class Config:
@@ -72,12 +73,42 @@ class Config:
         """Set configuration value."""
         self.data[key] = value
 
+    LOCAL_HOSTS = frozenset({"localhost", "127.0.0.1", "::1", "[::1]"})
+
     def validate(self) -> bool:
         """Validate required configuration."""
         missing = [k for k in self.REQUIRED_KEYS if not self.get(k)]
         if missing:
             raise ValueError(f"Missing required config: {', '.join(missing)}")
+        self.validate_server_url(self.get("server_url"))
         return True
+
+    @classmethod
+    def validate_server_url(cls, url: Optional[str]) -> str:
+        """Require https:// for any non-loopback server_url.
+
+        Request bodies are sealed in the canonical AES-256-GCM envelope, but
+        the Bearer API key rides in a plaintext header, so plain HTTP to a
+        remote host would still leak it. Loopback is exempt so local
+        development against http://localhost:8080 keeps working.
+        """
+        if not url:
+            return ""
+
+        parsed = urlparse(url)
+        if parsed.scheme not in ("http", "https"):
+            raise ValueError(f"server_url must be http:// or https://, got {parsed.scheme or 'no'} scheme")
+
+        if parsed.scheme == "https":
+            return url
+
+        if (parsed.hostname or "") in cls.LOCAL_HOSTS:
+            return url
+
+        raise ValueError(
+            f"server_url must use https:// for non-local hosts (got {url}). "
+            "Plain HTTP would expose the Bearer API key in transit."
+        )
 
     def save(self) -> None:
         """Save configuration to file."""

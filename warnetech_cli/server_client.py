@@ -15,6 +15,7 @@ import urllib.request
 from typing import Any, Optional
 
 from warnetech_cli.config import Config
+from warnetech_envelope import EnvelopeError, is_envelope, seal, unseal
 
 
 class ServerClient:
@@ -22,6 +23,10 @@ class ServerClient:
         self._base_url = (config.get("server_url") or "").rstrip("/")
         self._api_key = config.get("api_key") or ""
         self._timeout = 10
+        # Bodies are sealed in the canonical AES-256-GCM envelope whenever an
+        # API key is available. Without one there is no channel key, so the
+        # request goes out in plaintext and the server answers in kind.
+        self._encrypt = bool(self._api_key)
 
     def _request(self, method: str, path: str, params: Optional[dict] = None, body: Optional[Any] = None) -> dict:
         if not self._base_url:
@@ -33,24 +38,38 @@ class ServerClient:
             if query:
                 url = f"{url}?{query}"
 
+        if body is not None and self._encrypt:
+            body = seal(body, self._api_key)
+
         data = json.dumps(body).encode("utf-8") if body is not None else None
         req = urllib.request.Request(url, data=data, method=method)
         req.add_header("Content-Type", "application/json")
         if self._api_key:
             req.add_header("Authorization", f"Bearer {self._api_key}")
+        if self._encrypt:
+            req.add_header("X-Warnetech-Envelope", "aes-256-gcm")
 
         try:
             with urllib.request.urlopen(req, timeout=self._timeout) as resp:
                 raw = resp.read()
-                return json.loads(raw) if raw else {}
+                return self._open(json.loads(raw)) if raw else {}
         except urllib.error.HTTPError as exc:
             try:
-                detail = json.loads(exc.read())
+                detail = self._open(json.loads(exc.read()))
             except (json.JSONDecodeError, UnicodeDecodeError):
                 detail = exc.reason
             return {"error": f"server returned {exc.code}", "detail": detail}
         except urllib.error.URLError as exc:
             return {"error": "server unreachable", "reason": str(exc.reason)}
+
+    def _open(self, payload: Any) -> Any:
+        """Unseal a response if it arrived sealed; pass it through if not."""
+        if not is_envelope(payload):
+            return payload
+        try:
+            return unseal(payload, self._api_key)
+        except EnvelopeError as exc:
+            return {"error": "response decryption failed", "reason": str(exc)}
 
     def get(self, path: str, params: Optional[dict] = None) -> dict:
         return self._request("GET", path, params=params)
