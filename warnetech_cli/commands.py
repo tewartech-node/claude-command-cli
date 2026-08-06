@@ -3,7 +3,6 @@ Command Implementations Module
 Implements all 20 warnetech CLI commands with full functionality.
 """
 
-import time
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 from pathlib import Path
@@ -11,6 +10,7 @@ from pathlib import Path
 from warnetech_cli.config import Config
 from warnetech_cli.logging import setup_logging
 # SecurityManager import removed: deprecated and never called (see security.py)
+from warnetech_cli import diagnostics
 from warnetech_cli.compression import CompressionManager
 from warnetech_cli.utils import FileUtils
 from warnetech_cli.retention import RetentionPolicy
@@ -190,17 +190,11 @@ class Commands:
 
     def server_ping(self) -> Dict[str, Any]:
         """Ping warnetech-server and measure real round-trip latency."""
-        start = time.monotonic()
-        result = self.client.get("/status")
-        latency_ms = (time.monotonic() - start) * 1000
-        if "error" in result:
-            return {"status": "unreachable", "server": self.config.get("server_url"), **result}
-        return {
-            "status": "pong",
-            "server": self.config.get("server_url"),
-            "latency_ms": round(latency_ms, 1),
-            "timestamp": datetime.utcnow().isoformat(),
-        }
+        result = diagnostics.server_ping_check(self.client, self.config)
+        result.pop("ok", None)
+        result["status"] = result.get("status", "unreachable")
+        result["timestamp"] = datetime.utcnow().isoformat()
+        return result
 
     def db_check(self) -> Dict[str, Any]:
         """Check database connectivity via warnetech-server."""
@@ -209,3 +203,10 @@ class Commands:
     def db_sync(self) -> Dict[str, Any]:
         """Trigger a database partition/rollup sync via warnetech-server."""
         return self.client.post("/db/sync")
+
+    def ai_diagnose(self) -> Dict[str, Any]:
+        """Run the full system self-test: envelope, server reachability,
+        retention tier logic, ghost reconstruction, Supabase RPC schema,
+        operator backup manifest, live plaintext rejection, and config
+        validity. See warnetech_cli/diagnostics.py for each check."""
+        return diagnostics.diagnose(self.config, self.client)

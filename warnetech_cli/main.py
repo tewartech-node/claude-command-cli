@@ -151,6 +151,7 @@ def create_parser() -> argparse.ArgumentParser:
     subparsers.add_parser("server-ping", help="Ping server")
     subparsers.add_parser("db-check", help="Check database connectivity")
     subparsers.add_parser("db-sync", help="Sync with database")
+    subparsers.add_parser("ai-diagnose", help="Run the full system self-test")
 
     return parser
 
@@ -231,6 +232,8 @@ def main(argv: Optional[list] = None) -> int:
             result = commands.db_check()
         elif args.command == "db-sync":
             result = commands.db_sync()
+        elif args.command == "ai-diagnose":
+            result = commands.ai_diagnose()
         else:
             logger.error(f"Unknown command: {args.command}")
             return 1
