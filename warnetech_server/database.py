@@ -96,7 +96,21 @@ class ServerDatabase:
     # -- security events --------------------------------------------------------------
 
     def log_security_event(self, event: dict) -> bool:
-        ok = self._request("POST", "security_events", body=[event]) is not None
+        """Accepts the conventional (event_type, source, details, severity)
+        shape callers already build — log_ghost_creation/log_ghost_recall
+        below need no changes — but maps it onto security_events' ACTUAL
+        live columns (id, event_type, severity, detail), verified directly
+        against tewartech-project-supabase. There is no standalone
+        `source`/`details` column live; both are nested under `detail`
+        instead of flattened, so a details dict with its own "source" key
+        can never collide with the caller's `source`.
+        """
+        row = {
+            "event_type": event.get("event_type"),
+            "severity": event.get("severity", "medium"),
+            "detail": {"source": event.get("source"), "payload": event.get("details") or {}},
+        }
+        ok = self._request("POST", "security_events", body=[row]) is not None
         log_database_operation(logger, "write", "security_events", ok)
         return ok
 

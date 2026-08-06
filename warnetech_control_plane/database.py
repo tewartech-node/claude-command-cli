@@ -91,10 +91,24 @@ class SupabaseDatabase:
         """Used by retention_engine to record ghost-tier transitions —
         there is no dedicated ghost_log table, so ghost creation events log
         here per the same pattern warnetech_server/database.py uses.
+
+        Accepts the conventional (event_type, source, details, severity)
+        shape callers already build — retention_engine.py needs no
+        changes — but maps it onto security_events' ACTUAL live columns
+        (id, event_type, severity, detail), verified directly against
+        tewartech-project-supabase. There is no standalone `source`/
+        `details` column live; both are nested under `detail` instead of
+        flattened, so a details dict with its own "source" key can never
+        collide with the caller's `source`.
         """
-        result = self._request("POST", "security_events", body=[event])
+        row = {
+            "event_type": event.get("event_type"),
+            "severity": event.get("severity", "medium"),
+            "detail": {"source": event.get("source"), "payload": event.get("details") or {}},
+        }
+        result = self._request("POST", "security_events", body=[row])
         ok = result is not None
-        logger.info("security event logged", event_type=event.get("event_type"), ok=ok)
+        logger.info("security event logged", event_type=row["event_type"], ok=ok)
         return ok
 
     # -- RPC (complex analytics run as Postgres functions) -------------------

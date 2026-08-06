@@ -64,9 +64,19 @@ def insert_ai_decision(decision_type: str, input_data: dict, output_data: dict, 
 
 
 def insert_security_event(event_type: str, source: str, details: dict, severity: str = "medium") -> Optional[dict]:
+    """Signature unchanged (event_type, source, details, severity) so every
+    call site in intel_feeds.py, reputation_services.py, vuln_databases.py,
+    log_aggregators.py, and siem_soar.py needs no changes — but the row
+    written now matches security_events' ACTUAL live columns (id,
+    event_type, severity, detail), verified directly against
+    tewartech-project-supabase. There is no standalone `source`/`details`
+    column live; `source` and `details` are nested under `detail` instead
+    of flattened together, so a details dict that happens to carry its own
+    "source" key (several connector records do) can never collide with or
+    silently shadow the caller's `source` argument.
+    """
     return insert_row("security_events", {
         "event_type": event_type,
-        "source": source,
-        "details": details,
         "severity": severity,
+        "detail": {"source": source, "payload": details},
     })
