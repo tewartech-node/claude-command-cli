@@ -1,6 +1,14 @@
 """
 Security Module
 Handles encryption, decryption, and key derivation using AES-256-GCM.
+
+WIRE FORMAT WARNING — this module is NOT interoperable with the Cloudflare
+Worker. It emits iv(16) || ciphertext+tag, while the canonical channel format
+shared by worker/utils/crypto.js and warnetech_cli_legacy/crypto.js is
+iv(12) || ciphertext+tag. Do not wire this to the Worker without converting.
+
+Currently unused: the only importer is warnetech_cli/commands.py, which never
+calls it, and warnetech_cli/server_client.py does not encrypt request bodies.
 """
 
 import hashlib
