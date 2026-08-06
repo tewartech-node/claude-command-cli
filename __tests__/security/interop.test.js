@@ -1,10 +1,10 @@
 // Cross-implementation check: the legacy Node CLI and the Cloudflare Worker
-// must agree on the AES-GCM wire format, since they are the two ends of the
-// same encrypted channel.
+// are the two ends of the same encrypted channel, so they must agree on the
+// AES-GCM wire format.
 //
-// STATUS: they do NOT agree. These tests pin the current incompatibility so it
-// is visible in CI. Once a canonical format is chosen and both sides updated,
-// flip each `expect(...).rejects/toThrow` to a successful round-trip assertion.
+// Canonical format: iv(12) || ciphertext+tag
+// 96-bit IV per NIST SP 800-38D; the tag trails the ciphertext because
+// WebCrypto does not expose it separately.
 import * as legacy from '../../warnetech_cli_legacy/crypto.js';
 import * as worker from '../../worker/utils/crypto.js';
 
@@ -19,24 +19,39 @@ describe('Legacy CLI <-> Worker AES-GCM interop', () => {
   });
 
   test('both sides derive the same 256-bit key', async () => {
-    const legacyKey = legacy.deriveKey(API_KEY);
-    expect(legacyKey.length).toBe(32);
+    expect(legacy.deriveKey(API_KEY).length).toBe(32);
     await expect(worker.deriveKey(API_KEY)).resolves.toBeDefined();
   });
 
-  test('KNOWN BUG: legacy encrypt -> worker decrypt fails', async () => {
+  test('legacy encrypt -> worker decrypt', async () => {
     const packet = legacy.encryptData(PLAINTEXT, API_KEY);
-    await expect(worker.decryptData(packet, API_KEY)).rejects.toThrow(/Decryption failed/);
+    expect(await worker.decryptData(packet, API_KEY)).toBe(PLAINTEXT);
   });
 
-  test('KNOWN BUG: worker encrypt -> legacy decrypt fails', async () => {
+  test('worker encrypt -> legacy decrypt', async () => {
     const packet = await worker.encryptData(PLAINTEXT, API_KEY);
-    expect(() => legacy.decryptData(packet, API_KEY)).toThrow(/Decryption failed/);
+    expect(legacy.decryptData(packet, API_KEY)).toBe(PLAINTEXT);
   });
 
-  test('KNOWN BUG: wire layouts differ (iv 16+tag-first vs iv 12+tag-last)', async () => {
+  test('both sides emit the same wire layout', async () => {
     const l = Buffer.from(legacy.encryptData(PLAINTEXT, API_KEY), 'base64');
     const w = Buffer.from(await worker.encryptData(PLAINTEXT, API_KEY), 'base64');
-    expect(l.length - w.length).toBe(4); // 16-byte IV vs 12-byte IV
+    expect(l.length).toBe(w.length);
+    // iv(12) + ciphertext(=plaintext length for GCM) + tag(16)
+    expect(l.length).toBe(12 + PLAINTEXT.length + 16);
+  });
+
+  test('tampering with the trailing tag fails authentication', () => {
+    const packet = Buffer.from(legacy.encryptData(PLAINTEXT, API_KEY), 'base64');
+    packet[packet.length - 1] ^= 0x01;
+    expect(() => legacy.decryptData(packet.toString('base64'), API_KEY)).toThrow(
+      /Decryption failed/
+    );
+  });
+
+  test('a truncated packet is rejected', () => {
+    expect(() => legacy.decryptData(Buffer.alloc(8).toString('base64'), API_KEY)).toThrow(
+      /Decryption failed/
+    );
   });
 });

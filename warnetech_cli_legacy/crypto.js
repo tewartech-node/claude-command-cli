@@ -2,7 +2,12 @@
 import crypto from 'crypto';
 
 const ALGORITHM = 'aes-256-gcm';
-const IV_LENGTH = 16; // 128 bits for consistency
+// Canonical wire format, shared with worker/utils/crypto.js:
+//   iv(12) || ciphertext+tag
+// 96-bit IV is the NIST SP 800-38D recommendation for GCM, and WebCrypto
+// appends the auth tag to the ciphertext rather than exposing it separately.
+const IV_LENGTH = 12;
+const AUTH_TAG_LENGTH = 16;
 
 function deriveKey(apiKey) {
   // Derive encryption key from API key using PBKDF2
@@ -26,8 +31,8 @@ function encryptData(plaintext, apiKey) {
 
     const authTag = cipher.getAuthTag();
 
-    // Return IV + authTag + ciphertext in base64
-    const combined = Buffer.concat([iv, authTag, Buffer.from(encrypted, 'hex')]);
+    // Return IV + ciphertext + authTag in base64 (tag last, matching WebCrypto)
+    const combined = Buffer.concat([iv, Buffer.from(encrypted, 'hex'), authTag]);
     return combined.toString('base64');
   } catch (error) {
     throw new Error(`Encryption failed: ${error.message}`);
@@ -39,10 +44,14 @@ function decryptData(ciphertext, apiKey) {
     const key = deriveKey(apiKey);
     const combined = Buffer.from(ciphertext, 'base64');
 
-    // Extract IV, authTag, and encrypted data
+    if (combined.length <= IV_LENGTH + AUTH_TAG_LENGTH) {
+      throw new Error('packet too short');
+    }
+
+    // Extract IV, encrypted data, and trailing authTag
     const iv = combined.slice(0, IV_LENGTH);
-    const authTag = combined.slice(IV_LENGTH, IV_LENGTH + 16);
-    const encrypted = combined.slice(IV_LENGTH + 16);
+    const encrypted = combined.slice(IV_LENGTH, combined.length - AUTH_TAG_LENGTH);
+    const authTag = combined.slice(combined.length - AUTH_TAG_LENGTH);
 
     const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
     decipher.setAuthTag(authTag);
