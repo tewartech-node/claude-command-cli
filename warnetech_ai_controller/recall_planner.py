@@ -4,6 +4,8 @@ slices (or ghost copies) needed to satisfy it.
 
 from __future__ import annotations
 
+from dataclasses import asdict, dataclass, field
+from datetime import datetime
 from typing import Any, Optional
 
 from .config import AIControllerConfig, DEFAULT_CONFIG
@@ -187,3 +189,176 @@ def produce_ghost_recall_map(ghost_copies: list[dict]) -> dict:
         ],
         "total_steps": len(ordered),
     }
+
+
+# ---------------------------------------------------------------------------
+# Ghost relevance scoring + reconstruction plan object
+#
+# Purely additive on top of plan_ghost_recall()/produce_ghost_recall_map()
+# above — no existing function's signature changes. Where plan_ghost_recall()
+# filters candidates by exact system/type match and time_range overlap,
+# score_ghost_relevance() instead produces a continuous [0, 1] relevance
+# score per candidate (time proximity + system match + type match), and
+# build_reconstruction_plan() uses that score to assemble a multi-ghost
+# ReconstructionPlan: every candidate worth using to rebuild a state
+# window, not just an exact-match subset.
+# ---------------------------------------------------------------------------
+
+_RECONSTRUCTION_SYSTEM_MATCH_WEIGHT = 0.35
+_RECONSTRUCTION_TYPE_MATCH_WEIGHT = 0.35
+_RECONSTRUCTION_TIME_PROXIMITY_WEIGHT = 0.30
+
+# How far (in seconds) past the nearest edge of a ghost copy's time_range
+# its time-proximity score decays to zero. One week is generous enough
+# that ghost copies adjacent to the query window still contribute to a
+# reconstruction plan, not just ones that contain it exactly.
+_TIME_PROXIMITY_DECAY_SECONDS = 7 * 86400
+
+
+def _parse_iso_epoch(timestamp: Optional[str]) -> Optional[float]:
+    """Parses an ISO-8601 timestamp (with or without a trailing 'Z') to
+    epoch seconds. Returns None for missing/unparseable input rather than
+    raising — relevance scoring must never crash a recall request over a
+    malformed timestamp.
+    """
+    if not timestamp:
+        return None
+    try:
+        return datetime.fromisoformat(timestamp.replace("Z", "+00:00")).timestamp()
+    except ValueError:
+        return None
+
+
+def _time_proximity_score(ghost_copy: dict, query_time_epoch: Optional[float]) -> Optional[float]:
+    """1.0 when query_time falls inside the copy's time_range, decaying
+    linearly to 0.0 at _TIME_PROXIMITY_DECAY_SECONDS past the nearer edge.
+    Returns None (not 0.0) when there's nothing to compare — an
+    unparseable/missing time_range or no query_time — so the caller can
+    tell "no signal" apart from "far away" and exclude it from scoring
+    rather than penalizing it.
+    """
+    if query_time_epoch is None:
+        return None
+    time_range = ghost_copy.get("time_range") or {}
+    start_epoch = _parse_iso_epoch(time_range.get("start"))
+    end_epoch = _parse_iso_epoch(time_range.get("end"))
+    if start_epoch is None or end_epoch is None:
+        return None
+    if start_epoch <= query_time_epoch <= end_epoch:
+        return 1.0
+    distance = start_epoch - query_time_epoch if query_time_epoch < start_epoch else query_time_epoch - end_epoch
+    return max(0.0, 1.0 - distance / _TIME_PROXIMITY_DECAY_SECONDS)
+
+
+def score_ghost_relevance(
+    ghost_copy: dict,
+    system: Optional[str] = None,
+    type_: Optional[str] = None,
+    query_time: Optional[str] = None,
+) -> float:
+    """Continuous relevance score in [0, 1] for one ghost copy, combining
+    system match, type match, and time proximity — independent of
+    embeddings, so it works for callers with no query_embedding at all.
+
+    Any cue left unsupplied (None) is excluded from the weighted average
+    and the remaining weights renormalize, so a partial query (e.g. system
+    only) still produces a meaningful score instead of being penalized for
+    the cues it didn't supply. Supplying nothing scores every candidate 0.0.
+    """
+    query_time_epoch = _parse_iso_epoch(query_time)
+    weighted_components: list[tuple[float, float]] = []
+
+    if system is not None:
+        weighted_components.append((_RECONSTRUCTION_SYSTEM_MATCH_WEIGHT, 1.0 if ghost_copy.get("system") == system else 0.0))
+
+    if type_ is not None:
+        weighted_components.append((_RECONSTRUCTION_TYPE_MATCH_WEIGHT, 1.0 if ghost_copy.get("type") == type_ else 0.0))
+
+    proximity = _time_proximity_score(ghost_copy, query_time_epoch)
+    if proximity is not None:
+        weighted_components.append((_RECONSTRUCTION_TIME_PROXIMITY_WEIGHT, proximity))
+
+    if not weighted_components:
+        return 0.0
+
+    total_weight = sum(weight for weight, _ in weighted_components)
+    return sum(weight * score for weight, score in weighted_components) / total_weight
+
+
+@dataclass(frozen=True)
+class ReconstructionStep:
+    sequence: int
+    ghost_id: Optional[str]
+    system: Optional[str]
+    type: Optional[str]
+    relevance_score: float
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+
+@dataclass(frozen=True)
+class ReconstructionPlan:
+    """The reconstruction-plan object: which ghost copies to use and in
+    what order to rebuild a state window, distinct from
+    produce_ghost_recall_map()'s dict-shaped output above (kept as-is for
+    plan_ghost_recall() callers) so this new capability never has to
+    change that existing return shape.
+    """
+
+    steps: list[ReconstructionStep] = field(default_factory=list)
+    order: str = "relevance"
+    planned_at: str = field(default_factory=now_iso)
+
+    @property
+    def total_steps(self) -> int:
+        return len(self.steps)
+
+    def to_dict(self) -> dict:
+        return {
+            "steps": [step.to_dict() for step in self.steps],
+            "order": self.order,
+            "total_steps": self.total_steps,
+            "planned_at": self.planned_at,
+        }
+
+
+def build_reconstruction_plan(
+    ghost_copies: list[dict],
+    system: Optional[str] = None,
+    type_: Optional[str] = None,
+    query_time: Optional[str] = None,
+    order: str = "relevance",
+) -> ReconstructionPlan:
+    """Builds a multi-ghost ReconstructionPlan: every candidate that scores
+    above 0.0 via score_ghost_relevance() becomes a step, not just a single
+    best match, so a query spanning a state window wider than any one
+    ghost copy still gets every copy it needs back in one plan.
+
+    `order` picks the step sequence: "relevance" (highest score first, the
+    default) or "time" (chronological by time_range.start, for a plan
+    meant to be replayed in wall-clock order during reconstruction).
+    """
+    scored = [
+        (copy, score_ghost_relevance(copy, system=system, type_=type_, query_time=query_time))
+        for copy in ghost_copies
+    ]
+    scored = [(copy, score) for copy, score in scored if score > 0.0]
+
+    if order == "time":
+        scored.sort(key=lambda pair: (pair[0].get("time_range") or {}).get("start") or "")
+    else:
+        scored.sort(key=lambda pair: pair[1], reverse=True)
+
+    steps = [
+        ReconstructionStep(
+            sequence=i,
+            ghost_id=copy.get("id"),
+            system=copy.get("system"),
+            type=copy.get("type"),
+            relevance_score=score,
+        )
+        for i, (copy, score) in enumerate(scored)
+    ]
+
+    return ReconstructionPlan(steps=steps, order=order, planned_at=now_iso())
