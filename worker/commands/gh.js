@@ -5,7 +5,7 @@ export async function ghOpen(args, env) {
   return {
     ok: true,
     action: "open_claude",
-    url
+    url,
   };
 }
 
@@ -19,8 +19,8 @@ export async function ghPush(args, env) {
       "Run the following in Termux:",
       "git add .",
       `git commit -m "${message}"`,
-      "git push origin main"
-    ]
+      "git push origin main",
+    ],
   };
 }
 
@@ -28,28 +28,25 @@ export async function ghPull(env) {
   return {
     ok: true,
     action: "pull_instructions",
-    instructions: [
-      "Run the following in Termux:",
-      "git pull"
-    ]
+    instructions: ["Run the following in Termux:", "git pull"],
   };
 }
 
 async function handleGh(args, env) {
   if (!args || args.length === 0) {
-    throw new Error('gh command requires a subcommand: open, push, or pull');
+    throw new Error("gh command requires a subcommand: open, push, or pull");
   }
 
   const [subcommand, ...subargs] = Array.isArray(args) ? args : [args];
 
   switch (subcommand) {
-    case 'open':
+    case "open":
       return ghOpen(subargs[0], env);
 
-    case 'push':
+    case "push":
       return ghPush(subargs[0], env);
 
-    case 'pull':
+    case "pull":
       return ghPull(env);
 
     default:

@@ -13,7 +13,6 @@ uses, so ids and weights round-trip identically across implementations:
 from __future__ import annotations
 
 import re
-import time
 from dataclasses import asdict, dataclass, field
 from typing import Optional
 

@@ -7,6 +7,7 @@ The claude-command-cli system implements end-to-end encryption and comprehensive
 ## Encryption
 
 ### AES-256-GCM (Primary)
+
 - **Algorithm**: AES with 256-bit key in Galois/Counter Mode
 - **Key Derivation**: PBKDF2 with 100,000 iterations, SHA-256
 - **IV Length**: 128 bits (16 bytes), randomly generated per message
@@ -14,6 +15,7 @@ The claude-command-cli system implements end-to-end encryption and comprehensive
 - **Usage**: All request/response payloads
 
 ### ChaCha20-Poly1305 (Fallback)
+
 - Reserved for future implementation
 - Compatible with WebCrypto API
 - Fallback when AES unavailable
@@ -68,17 +70,20 @@ CLI Side:
 ## Authentication & Validation
 
 ### API Key Management
+
 - **Storage**: Never transmitted in plaintext
 - **Transmission**: X-API-Key-Hash header (SHA-256 hash)
 - **Derivation**: PBKDF2 for encryption key generation
 - **Configuration**: ~/.claude-cli/config.json (local only)
 
 ### Request Validation Headers
+
 - **X-API-Key-Hash**: SHA-256 hash of API key (authentication)
 - **X-Request-ID**: Unique identifier per request (replay prevention)
 - **X-Timestamp**: ISO 8601 timestamp (timestamp validation)
 
 ### Anti-Tamper Checks
+
 1. **Header Validation**: All required headers must be present
 2. **Timestamp Validation**: Must be within 5-minute window
 3. **Signature Verification**: HMAC-SHA256 must match payload
@@ -86,6 +91,7 @@ CLI Side:
 5. **Timing-Safe Comparison**: Prevent timing attacks on signatures
 
 ### Request Structure Validation
+
 - Must be plain object (not array or null)
 - Must contain `command` or `encrypted_data` field
 - Encrypted requests must include `signature` field
@@ -94,24 +100,28 @@ CLI Side:
 ## Data Classification
 
 ### TIER_1: Highly Sensitive
+
 - **Examples**: API keys, authentication tokens, passwords
 - **Encryption**: Required at rest and in transit
 - **Logging**: Access logging required
 - **Protection**: Maximum security
 
 ### TIER_2: Sensitive
+
 - **Examples**: User code, prompts, analysis results
 - **Encryption**: Required in transit only
 - **Logging**: Audit logging required
 - **Protection**: Standard security
 
 ### TIER_3: Public
+
 - **Examples**: Help text, status info, version numbers
 - **Encryption**: Not required
 - **Logging**: Public logging allowed
 - **Protection**: Basic security
 
 ### Command Tier Assignment
+
 - `ping`, `gh-open` → TIER_3
 - `ai`, `gh`, `sys` → TIER_2
 - Unknown commands → TIER_2 (default)
@@ -119,16 +129,19 @@ CLI Side:
 ## Security Checks
 
 ### Rate Limiting (Framework Ready)
+
 - Cloudflare KV integration (not yet implemented)
 - Per-API-key rate limits
 - Prevents DoS attacks
 
 ### Replay Attack Prevention
+
 - Unique request ID per request
 - Request ID deduplication with TTL
 - Timestamp window validation (5 minutes)
 
 ### Timing Attack Prevention
+
 - Timing-safe HMAC comparison
 - Constant-time signature verification
 - No early rejection on partial match
@@ -136,6 +149,7 @@ CLI Side:
 ## Threat Model
 
 ### Protected Against
+
 ✅ Plaintext transmission of sensitive data
 ✅ API key exposure in headers
 ✅ Request tampering/modification
@@ -145,11 +159,13 @@ CLI Side:
 ✅ Invalid request structures
 
 ### Partially Protected Against (Framework Ready)
+
 ⏳ Brute force attacks (rate limiting)
 ⏳ DDoS attacks (rate limiting, Cloudflare edge)
 ⏳ Quantum attacks (algorithm agility ready)
 
 ### Out of Scope
+
 ❌ Phishing attacks
 ❌ Local machine compromise
 ❌ Compromised API keys
@@ -158,6 +174,7 @@ CLI Side:
 ## Configuration
 
 ### Client Configuration (~/.claude-cli/config.json)
+
 ```json
 {
   "worker_url": "https://your-worker.workers.dev",
@@ -170,12 +187,14 @@ CLI Side:
 **Permissions**: `600` (owner read/write only)
 
 ### Environment Variables
+
 - `CLAUDE_API_KEY`: Override config file API key
 - `CLAUDE_WORKER_URL`: Override worker URL
 
 ## Best Practices
 
 ### For Users
+
 1. ✅ Keep API keys secure and private
 2. ✅ Use strong, unique API keys
 3. ✅ Rotate keys periodically
@@ -184,6 +203,7 @@ CLI Side:
 6. ✅ Monitor command execution logs
 
 ### For Developers
+
 1. ✅ Never log plaintext API keys
 2. ✅ Use timing-safe comparisons for secrets
 3. ✅ Validate all user input at system boundaries
@@ -195,12 +215,14 @@ CLI Side:
 ## Testing
 
 ### Security Test Coverage
+
 - 12 encryption/decryption tests
 - 23 validation and anti-tamper tests
 - Total: 49 security-related tests
 - Coverage: 100% of security utilities
 
 ### Test Categories
+
 - Encryption/decryption correctness
 - Key derivation consistency
 - Signature generation and verification
@@ -228,6 +250,7 @@ Before deploying to production:
 ## Security Contact
 
 For security vulnerabilities:
+
 1. Do NOT open public issues
 2. Email: security@warnetech.dev (placeholder)
 3. Expected response time: 24 hours
@@ -235,11 +258,13 @@ For security vulnerabilities:
 ## Compliance
 
 ### Standards
+
 - OWASP Top 10 protection
 - NIST Cybersecurity Framework
 - CWE/SANS Top 25 mitigation
 
 ### Encryption Standards
+
 - AES-256-GCM: FIPS 140-2 compliant
 - SHA-256: FIPS 180-4 compliant
 - PBKDF2: PKCS #5 compliant

@@ -1,21 +1,25 @@
 # AI Integration: NVIDIA Nemotron
 
 ## Overview
+
 The system integrates NVIDIA Nemotron 3 Ultra for AI-powered features (code fixing, explanation, generation, error diagnosis).
 
 ## API Details
 
 ### Endpoint
+
 ```
 https://integrate.api.nvidia.com/v1/chat/completions
 ```
 
 ### Authentication
+
 ```
 Authorization: Bearer <NVIDIA_API_KEY>
 ```
 
 ### Request Format
+
 ```json
 {
   "model": "nvidia/nemotron-3-ultra",
@@ -36,6 +40,7 @@ Authorization: Bearer <NVIDIA_API_KEY>
 ```
 
 ### Response Format
+
 ```json
 {
   "id": "cmpl-...",
@@ -63,7 +68,9 @@ Authorization: Bearer <NVIDIA_API_KEY>
 ## Commands Using Nemotron
 
 ### warnetech ai "<prompt>"
+
 **System Prompt:**
+
 ```
 You are Claude, an AI assistant for the Warnetech command-line system.
 You help developers with:
@@ -79,6 +86,7 @@ For errors, explain the root cause and solution.
 ```
 
 **Flow:**
+
 1. User provides prompt
 2. CLI sends to Worker (encrypted)
 3. Worker calls NVIDIA API
@@ -88,7 +96,9 @@ For errors, explain the root cause and solution.
 ---
 
 ### warnetech fix "<file_path>"
+
 **System Prompt:**
+
 ```
 Analyze the provided code and:
 1. Identify any bugs, issues, or potential problems
@@ -104,6 +114,7 @@ Focus on:
 ```
 
 **Example:**
+
 ```bash
 $ warnetech fix "buggy_script.sh"
 ✓ Analyzing script.sh...
@@ -124,7 +135,9 @@ Apply fixes? (y/n)
 ---
 
 ### warnetech explain "<file_path>"
+
 **System Prompt:**
+
 ```
 Explain the provided code in detail:
 1. Purpose and high-level overview
@@ -140,7 +153,9 @@ Break down complex concepts.
 ---
 
 ### warnetech help --error "<error_message>"
+
 **System Prompt:**
+
 ```
 A user encountered an error in the Warnetech CLI system:
 "${error_message}"
@@ -154,6 +169,7 @@ Provide:
 ```
 
 **Example:**
+
 ```bash
 $ warnetech ai "some prompt" && echo OK
 ✗ Error: connection timeout
@@ -187,9 +203,11 @@ Prevention:
 ## Streaming Support
 
 ### Streaming Reasoning Tokens
+
 For complex queries, enable streaming to see reasoning tokens in real-time.
 
 **Request:**
+
 ```json
 {
   "stream": true,
@@ -199,6 +217,7 @@ For complex queries, enable streaming to see reasoning tokens in real-time.
 ```
 
 **Response Stream:**
+
 ```
 data: {"choices":[{"delta":{"content":"The"}}]}
 data: {"choices":[{"delta":{"content":" first"}}]}
@@ -208,6 +227,7 @@ data: [DONE]
 ```
 
 **CLI Implementation:**
+
 ```bash
 warnetech ai "explain quantum computing" --stream
 > Starting stream...
@@ -220,9 +240,11 @@ The first step in understanding quantum computing is...
 ## Prompt Optimization
 
 ### AST Mutation Engine
+
 The Worker performs automated prompt optimization using Abstract Syntax Tree mutations.
 
 **Optimization Strategy:**
+
 1. **Conciseness**: Remove redundant words
 2. **Clarity**: Add specificity and context
 3. **Structure**: Reorganize for better understanding
@@ -230,6 +252,7 @@ The Worker performs automated prompt optimization using Abstract Syntax Tree mut
 5. **Constraints**: Add helpful constraints (language, format)
 
 **Example Mutations:**
+
 ```
 Before: "explain code"
 After: "Explain this code in 2-3 sentences, focusing on the main logic"
@@ -242,25 +265,26 @@ After: "Generate a bash script for backing up files to S3, with error handling"
 ```
 
 **Implementation:**
+
 ```javascript
 function optimizePrompt(userPrompt, context) {
   let optimized = userPrompt;
-  
+
   // Add context if available
   if (context.language) {
     optimized = `[${context.language}]\n${optimized}`;
   }
-  
+
   // Add format constraint if applicable
   if (context.wantCode) {
-    optimized += '\n\nProvide code only, no explanation.';
+    optimized += "\n\nProvide code only, no explanation.";
   }
-  
+
   // Ensure completeness
-  if (!optimized.includes('?') && !optimized.endsWith('.')) {
-    optimized += '.';
+  if (!optimized.includes("?") && !optimized.endsWith(".")) {
+    optimized += ".";
   }
-  
+
   return optimized;
 }
 ```
@@ -270,9 +294,11 @@ function optimizePrompt(userPrompt, context) {
 ## Error Handling via AI
 
 ### Nemotron Error Explanations
+
 When a command fails, offer AI-powered explanation.
 
 **Flow:**
+
 1. Command fails with error message
 2. CLI catches error
 3. CLI offers: `Run 'warnetech help --error "message"' for explanation`
@@ -282,6 +308,7 @@ When a command fails, offer AI-powered explanation.
 7. Display formatted explanation
 
 **Example:**
+
 ```bash
 $ warnetech gh-push "fix: bug"
 ✗ Error: Repository not found
@@ -295,9 +322,11 @@ Get help: warnetech help --error "Repository not found"
 ## Rate Limiting & Quotas
 
 ### NVIDIA Quotas
+
 Track usage to avoid hitting API limits.
 
 **Stored in Supabase:**
+
 ```sql
 CREATE TABLE nvidia_quotas (
   user_id TEXT,
@@ -311,11 +340,12 @@ CREATE TABLE nvidia_quotas (
 ```
 
 **Check Before Request:**
+
 ```javascript
 function checkQuota(userId, tokensNeeded) {
   const quota = getQuota(userId);
   if (quota.tokens_used + tokensNeeded > quota.monthly_limit) {
-    throw new Error('Monthly token limit reached');
+    throw new Error("Monthly token limit reached");
   }
   return true;
 }
@@ -326,6 +356,7 @@ function checkQuota(userId, tokensNeeded) {
 ## Model Selection
 
 ### Nemotron 3 Ultra (Default)
+
 - Reasoning capability: Excellent
 - Code generation: Excellent
 - Speed: Fast
@@ -334,7 +365,9 @@ function checkQuota(userId, tokensNeeded) {
 **Use for:** Code analysis, debugging, complex explanations
 
 ### Fallback Models
+
 If Nemotron is unavailable:
+
 - Claude (via Anthropic API)
 - GPT-4 (via OpenAI)
 - Local LLM (Ollama)
@@ -344,39 +377,42 @@ If Nemotron is unavailable:
 ## Security in AI Integration
 
 ### No Sensitive Data
+
 - Never send passwords, tokens, secrets to NVIDIA
 - Remove API keys from code samples
 - Redact PII from logs
 - Use data tier classification
 
 ### Prompt Injection Prevention
+
 ```javascript
 function sanitizePrompt(prompt) {
   // Remove common injection patterns
-  prompt = prompt.replace(/[^a-zA-Z0-9\s\n"'.,!?-]/g, ' ');
-  
+  prompt = prompt.replace(/[^a-zA-Z0-9\s\n"'.,!?-]/g, " ");
+
   // Limit length
   if (prompt.length > 5000) {
     prompt = prompt.substring(0, 5000);
   }
-  
+
   return prompt;
 }
 ```
 
 ### Model Output Validation
+
 ```javascript
 function validateResponse(response) {
   // Check for suspicious patterns
-  if (response.includes('API key')) {
-    throw new Error('Response contains sensitive data');
+  if (response.includes("API key")) {
+    throw new Error("Response contains sensitive data");
   }
-  
+
   // Verify response isn't truncated
-  if (response.endsWith('...')) {
+  if (response.endsWith("...")) {
     // Handle truncation
   }
-  
+
   return response;
 }
 ```
@@ -386,18 +422,21 @@ function validateResponse(response) {
 ## Testing
 
 ### Unit Tests
+
 - Test prompt optimization
 - Test response parsing
 - Test error handling
 - Test streaming
 
 ### Integration Tests
+
 - End-to-end AI request
 - Test rate limiting
 - Test fallback models
 - Test large responses
 
 ### Load Tests
+
 - 100 concurrent requests
 - Monitor token usage
 - Check rate limit behavior

@@ -7,11 +7,11 @@ and have a different contract (they return and take the nonce separately).
 
 import pytest
 
+from warnetech_cli.security import SecurityManager
+
 pytestmark = pytest.mark.filterwarnings(
     "ignore:SecurityManager is deprecated:DeprecationWarning"
 )
-
-from warnetech_cli.security import SecurityManager
 
 
 def test_key_derivation_round_trip():

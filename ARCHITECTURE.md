@@ -78,6 +78,7 @@
 ## Data Flow
 
 ### Request Flow (CLI → Worker)
+
 ```
 1. User types: warnetech ai "explain code"
 2. CLI reads ~/.claude-cli/config.json
@@ -104,6 +105,7 @@
 ```
 
 ### Response Flow
+
 ```
 1. AI Response arrives at Worker
 2. Worker formats: { ok: true, data: {...} }
@@ -118,6 +120,7 @@
 ## Component Breakdown
 
 ### Layer 1: CLI (warnetech_cli_legacy/)
+
 ```
 warnetech (main entrypoint)
 ├─ Commands:
@@ -150,6 +153,7 @@ warnetech (main entrypoint)
 ```
 
 ### Layer 2: Worker (worker/)
+
 ```
 index.js (HTTP handler)
 ├─ POST /api/command
@@ -202,6 +206,7 @@ utils/ (Shared)
 ```
 
 ### Layer 3: GitHub & External APIs
+
 ```
 GitHub Repository
 ├─ /docs (9 specification files)
@@ -237,6 +242,7 @@ External Services
 ## Security Architecture
 
 ### Encryption Layers
+
 ```
                    AES-256-GCM (Primary)
                    ↓ Fallback ↓
@@ -265,6 +271,7 @@ Output (formatted)
 ```
 
 ### Authentication Flow
+
 ```
 1. CLI has API_KEY (stored in config)
 2. CLI includes X-API-Key header (hashed)
@@ -276,6 +283,7 @@ Output (formatted)
 ```
 
 ### Data Tiers
+
 ```
 TIER_1: Highly Sensitive
 ├─ Encrypted at rest
@@ -297,6 +305,7 @@ TIER_3: Public
 ## Deployment Architecture
 
 ### Development
+
 ```
 Local Machine
 ├─ npm run dev (Worker dev server)
@@ -305,6 +314,7 @@ Local Machine
 ```
 
 ### Staging
+
 ```
 Cloudflare Edge (Staging)
 ├─ Deployed Worker
@@ -314,6 +324,7 @@ Cloudflare Edge (Staging)
 ```
 
 ### Production
+
 ```
 Cloudflare Edge (Production)
 ├─ Deployed Worker
@@ -326,7 +337,9 @@ Cloudflare Edge (Production)
 ## Extension Points
 
 ### Adding Features
+
 The architecture supports:
+
 - ✅ New CLI commands (add to warnetech_cli_legacy/warnetech)
 - ✅ New Worker handlers (add to worker/commands/)
 - ✅ New API integrations (add to worker/utils/)
@@ -334,6 +347,7 @@ The architecture supports:
 - ✅ New infrastructure (add Cloudflare services)
 
 ### Safe Modifications
+
 - Don't change the three-layer separation
 - Don't hardcode secrets
 - Don't break existing commands
@@ -344,6 +358,7 @@ The architecture supports:
 ## Monitoring & Observability
 
 ### Metrics
+
 - Request latency (p50, p95, p99)
 - Error rates (4xx, 5xx)
 - Token usage (NVIDIA API)
@@ -351,6 +366,7 @@ The architecture supports:
 - Database queries (Supabase)
 
 ### Logging
+
 - All requests logged (no plaintext secrets)
 - Errors with stack traces
 - Audit trail for security events
@@ -358,6 +374,7 @@ The architecture supports:
 - RLS in Supabase
 
 ### Alerts
+
 - Error rate > 1%
 - P99 latency > 5s
 - Quota approaching limit
@@ -367,6 +384,7 @@ The architecture supports:
 ## Summary
 
 This three-layer architecture:
+
 1. **Keeps concerns separated** - CLI, Worker, Storage
 2. **Maintains security** - End-to-end encryption
 3. **Enables scaling** - Each layer scales independently

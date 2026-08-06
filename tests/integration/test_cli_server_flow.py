@@ -19,7 +19,7 @@ import pytest
 
 from warnetech_cli.commands import Commands
 from warnetech_cli.config import Config
-from warnetech_envelope import is_envelope, seal, unseal
+from warnetech_envelope import is_envelope, unseal
 
 API_KEY = "integration-test-key"
 

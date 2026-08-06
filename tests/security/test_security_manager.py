@@ -1,10 +1,10 @@
 import pytest
 
+from warnetech_cli.security import SecurityManager
+
 pytestmark = pytest.mark.filterwarnings(
     "ignore:SecurityManager is deprecated:DeprecationWarning"
 )
-
-from warnetech_cli.security import SecurityManager
 
 
 def test_derive_key_round_trip():

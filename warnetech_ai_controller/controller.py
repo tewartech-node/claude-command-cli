@@ -17,12 +17,10 @@ failures never raise; database.py fails soft, so an outage degrades to
 
 from __future__ import annotations
 
-from typing import Optional
 
 from . import anomaly_classifier, recall_planner, relevance, security_intel, strategy_engine, test_analyzer
 from .config import AIControllerConfig, DEFAULT_CONFIG
 from .database import insert_ai_decision, insert_security_event
-from .embeddings import generate_slice_embedding
 from .utils import now_iso
 
 

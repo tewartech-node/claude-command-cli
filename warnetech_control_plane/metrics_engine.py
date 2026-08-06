@@ -10,7 +10,7 @@ matching the tiering strategy used across the rest of the control plane
 from __future__ import annotations
 
 import statistics
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Protocol
 

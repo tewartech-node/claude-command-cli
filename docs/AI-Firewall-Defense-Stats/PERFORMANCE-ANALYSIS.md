@@ -1,4 +1,5 @@
 # Performance Analysis
+
 ## Speed, Throughput, and Resource Utilization
 
 ---
@@ -31,29 +32,29 @@ Response Time Distribution:
 
 ### Breakdown by Operation
 
-| Operation | Average | P95 | P99 |
-|-----------|---------|-----|-----|
-| Signature Matching | 2.1ms | 2.8ms | 3.5ms |
-| Behavioral Analysis | 2.4ms | 3.2ms | 4.1ms |
-| Anomaly Detection | 1.8ms | 2.4ms | 3.0ms |
-| Decision Making | 0.7ms | 1.0ms | 1.5ms |
-| Logging | 0.3ms | 0.5ms | 0.8ms |
-| **Total** | **7.3ms** | **9.8ms** | **14.2ms** |
+| Operation           | Average   | P95       | P99        |
+| ------------------- | --------- | --------- | ---------- |
+| Signature Matching  | 2.1ms     | 2.8ms     | 3.5ms      |
+| Behavioral Analysis | 2.4ms     | 3.2ms     | 4.1ms      |
+| Anomaly Detection   | 1.8ms     | 2.4ms     | 3.0ms      |
+| Decision Making     | 0.7ms     | 1.0ms     | 1.5ms      |
+| Logging             | 0.3ms     | 0.5ms     | 0.8ms      |
+| **Total**           | **7.3ms** | **9.8ms** | **14.2ms** |
 
 ### Response Time by Attack Type
 
-| Attack Type | Avg (ms) | P95 (ms) | Notes |
-|-------------|----------|----------|-------|
-| SQL Injection | 6.8 | 8.2 | Fast |
-| XSS | 8.2 | 10.1 | Moderate |
-| DDoS | 5.9 | 7.2 | Fast |
-| Brute Force | 3.8 | 4.8 | Very Fast |
-| Path Traversal | 6.9 | 8.5 | Fast |
-| Command Injection | 6.2 | 7.8 | Fast |
-| CSRF | 4.6 | 5.8 | Very Fast |
-| XXE | 7.4 | 8.9 | Moderate |
-| Privilege Escalation | 5.8 | 7.2 | Fast |
-| Data Exfiltration | 9.1 | 11.3 | Complex |
+| Attack Type          | Avg (ms) | P95 (ms) | Notes     |
+| -------------------- | -------- | -------- | --------- |
+| SQL Injection        | 6.8      | 8.2      | Fast      |
+| XSS                  | 8.2      | 10.1     | Moderate  |
+| DDoS                 | 5.9      | 7.2      | Fast      |
+| Brute Force          | 3.8      | 4.8      | Very Fast |
+| Path Traversal       | 6.9      | 8.5      | Fast      |
+| Command Injection    | 6.2      | 7.8      | Fast      |
+| CSRF                 | 4.6      | 5.8      | Very Fast |
+| XXE                  | 7.4      | 8.9      | Moderate  |
+| Privilege Escalation | 5.8      | 7.2      | Fast      |
+| Data Exfiltration    | 9.1      | 11.3     | Complex   |
 
 **Fastest:** Brute Force (3.8ms)  
 **Slowest:** Data Exfiltration (9.1ms)  
@@ -113,15 +114,15 @@ Memory Growth Over Time:
 
 **Memory Breakdown:**
 
-| Component | Usage | % of Peak |
-|-----------|-------|----------|
-| Signature Database | 18MB | 23% |
-| Attack Log | 12MB | 15% |
-| Learning History | 8MB | 10% |
-| Metrics Storage | 6MB | 8% |
-| API Server Buffers | 15MB | 19% |
-| Other | 19MB | 25% |
-| **Total Peak** | **78MB** | **100%** |
+| Component          | Usage    | % of Peak |
+| ------------------ | -------- | --------- |
+| Signature Database | 18MB     | 23%       |
+| Attack Log         | 12MB     | 15%       |
+| Learning History   | 8MB      | 10%       |
+| Metrics Storage    | 6MB      | 8%        |
+| API Server Buffers | 15MB     | 19%       |
+| Other              | 19MB     | 25%       |
+| **Total Peak**     | **78MB** | **100%**  |
 
 ### Memory Efficiency
 
@@ -177,14 +178,14 @@ CPU Usage Timeline:
 
 ### Request Patterns
 
-| Endpoint | Requests | Avg Response | Total Data |
-|----------|----------|--------------|-----------|
-| /status | 427 | 2.1ms | 3.4MB |
-| /analyze | 427 | 7.3ms | 8.2MB |
-| /metrics | 50 | 1.8ms | 1.2MB |
-| /learning-history | 42 | 3.2ms | 2.8MB |
-| Other | 30 | 2.4ms | 3.5MB |
-| **Total** | **976** | **3.5ms** | **19.1MB** |
+| Endpoint          | Requests | Avg Response | Total Data |
+| ----------------- | -------- | ------------ | ---------- |
+| /status           | 427      | 2.1ms        | 3.4MB      |
+| /analyze          | 427      | 7.3ms        | 8.2MB      |
+| /metrics          | 50       | 1.8ms        | 1.2MB      |
+| /learning-history | 42       | 3.2ms        | 2.8MB      |
+| Other             | 30       | 2.4ms        | 3.5MB      |
+| **Total**         | **976**  | **3.5ms**    | **19.1MB** |
 
 **Network Impact:** Minimal; suitable for cloud deployment.
 
@@ -198,11 +199,11 @@ CPU Usage Timeline:
 **Total Log Size:** 4.2MB  
 **Write Operations:** 427+ (one per attack)
 
-| Log Type | Size | Entries |
-|----------|------|---------|
-| Attack Log | 2.1MB | 427 |
-| Learning Log | 1.2MB | 427 |
-| Metrics Log | 0.9MB | 200+ |
+| Log Type     | Size  | Entries |
+| ------------ | ----- | ------- |
+| Attack Log   | 2.1MB | 427     |
+| Learning Log | 1.2MB | 427     |
+| Metrics Log  | 0.9MB | 200+    |
 
 **Write Pattern:** Synchronous, minimal caching (safe for audit trails)
 
@@ -225,6 +226,7 @@ Attack Volume  Duration  Memory   CPU Avg  Status
 ```
 
 **Scaling Notes:**
+
 - Linear scaling confirmed up to 427 attacks
 - Memory linear growth: +0.026MB per attack
 - CPU linear growth: +0.042% per attack
@@ -279,13 +281,13 @@ Other                ░░░░░░░░░░ 4%
 
 ### Targets vs Achievement
 
-| Metric | Target | Actual | Status |
-|--------|--------|--------|--------|
-| Response Time | <10ms | 7.3ms | ✅ +30% better |
-| Throughput | 100+/min | 165/min | ✅ +65% better |
-| Memory | <100MB | 67MB | ✅ -33% better |
-| CPU | <30% avg | 18% avg | ✅ -40% better |
-| Accuracy | >90% | 94.7% | ✅ +4.7% better |
+| Metric        | Target   | Actual  | Status          |
+| ------------- | -------- | ------- | --------------- |
+| Response Time | <10ms    | 7.3ms   | ✅ +30% better  |
+| Throughput    | 100+/min | 165/min | ✅ +65% better  |
+| Memory        | <100MB   | 67MB    | ✅ -33% better  |
+| CPU           | <30% avg | 18% avg | ✅ -40% better  |
+| Accuracy      | >90%     | 94.7%   | ✅ +4.7% better |
 
 **All targets exceeded.**
 
@@ -295,17 +297,18 @@ Other                ░░░░░░░░░░ 4%
 
 ### Performance Standards
 
-| Category | Metric | Rating | Notes |
-|----------|--------|--------|-------|
-| **Speed** | 7.3ms avg response | ✅ Excellent | Well under 10ms target |
-| **Throughput** | 165+ attacks/min | ✅ Excellent | Handles sustained load |
-| **Memory** | 67MB peak | ✅ Good | Fits in container |
-| **CPU** | 18% average | ✅ Excellent | Low resource usage |
-| **Stability** | 100% uptime | ✅ Perfect | No timeouts/crashes |
+| Category       | Metric             | Rating       | Notes                  |
+| -------------- | ------------------ | ------------ | ---------------------- |
+| **Speed**      | 7.3ms avg response | ✅ Excellent | Well under 10ms target |
+| **Throughput** | 165+ attacks/min   | ✅ Excellent | Handles sustained load |
+| **Memory**     | 67MB peak          | ✅ Good      | Fits in container      |
+| **CPU**        | 18% average        | ✅ Excellent | Low resource usage     |
+| **Stability**  | 100% uptime        | ✅ Perfect   | No timeouts/crashes    |
 
 ### Recommendations for Deployment
 
 ✅ **Production Ready**
+
 - Meets or exceeds all performance targets
 - Memory footprint acceptable for containerization
 - CPU usage allows for multiple instances
@@ -313,6 +316,7 @@ Other                ░░░░░░░░░░ 4%
 - No identified performance bottlenecks
 
 **Recommended Environment:**
+
 - Container: 256MB RAM minimum
 - CPU: 1 core minimum (multi-core for parallel instances)
 - Network: 10Mbps minimum (handles ~600 attacks/minute)

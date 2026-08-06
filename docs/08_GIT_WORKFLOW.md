@@ -3,10 +3,13 @@
 ## Branch Strategy
 
 ### Development Branch
+
 ```
 claude/termux-cli-cloudflare-nemotron-pve6ca
 ```
+
 All development happens on this branch. Once complete:
+
 1. Create PR to `main`
 2. Verify CI/CD passes
 3. Merge to `main`
@@ -14,7 +17,9 @@ All development happens on this branch. Once complete:
 5. Push to GitHub
 
 ### Feature Branches (from development branch)
+
 For specific features, create feature branches:
+
 ```bash
 git checkout -b feat/command-ai
 git checkout -b feat/worker-security
@@ -28,6 +33,7 @@ Then merge back to development branch when complete.
 ## Commit Guidelines
 
 ### Commit Message Format
+
 ```
 <type>: <description>
 
@@ -35,6 +41,7 @@ Then merge back to development branch when complete.
 ```
 
 ### Types
+
 - `feat`: New feature
 - `fix`: Bug fix
 - `refactor`: Code restructuring (no behavior change)
@@ -43,6 +50,7 @@ Then merge back to development branch when complete.
 - `chore`: Build, deps, config
 
 ### Examples
+
 ```
 feat: add warnetech ai command for Nemotron integration
 feat: implement AES-256-GCM encryption
@@ -53,6 +61,7 @@ chore: upgrade dependencies
 ```
 
 ### Commit Best Practices
+
 - One feature per commit (atomic)
 - Complete, working code (passes tests)
 - Include test updates in same commit
@@ -64,6 +73,7 @@ chore: upgrade dependencies
 ## Common Workflows
 
 ### Feature Development
+
 ```bash
 # Start feature
 git checkout -b feat/new-command
@@ -87,6 +97,7 @@ git branch -d feat/new-command
 ```
 
 ### Bug Fix
+
 ```bash
 # Create fix branch
 git checkout -b fix/rate-limit-handling
@@ -103,6 +114,7 @@ git push -u origin fix/rate-limit-handling
 ```
 
 ### Pull Latest Changes
+
 ```bash
 # Update development branch
 git fetch origin
@@ -117,6 +129,7 @@ git rebase origin/claude/termux-cli-cloudflare-nemotron-pve6ca
 ## CI/CD Pipeline
 
 ### Pre-commit Checks (Local)
+
 ```bash
 npm run lint     # ESLint
 npm run format   # Prettier
@@ -124,6 +137,7 @@ npm run test     # Jest
 ```
 
 ### GitHub Actions (on push)
+
 1. **Lint & Format**
    - Check code style
    - Check formatting
@@ -146,7 +160,9 @@ npm run test     # Jest
    - Deploy to production (on main branch)
 
 ### Status Checks
+
 All PRs must pass:
+
 - ✓ Lint
 - ✓ Tests
 - ✓ Security scan
@@ -158,12 +174,15 @@ All PRs must pass:
 ## Release Process
 
 ### Version Numbering
+
 Follow Semantic Versioning (MAJOR.MINOR.PATCH):
+
 - MAJOR: Breaking changes (1.0.0 → 2.0.0)
 - MINOR: New features (1.0.0 → 1.1.0)
 - PATCH: Bug fixes (1.0.0 → 1.0.1)
 
 ### Release Steps
+
 ```bash
 # 1. Prepare release on development branch
 npm version patch|minor|major
@@ -186,19 +205,24 @@ git push origin main
 ```
 
 ### Release Notes
+
 Create CHANGELOG.md entry:
+
 ```markdown
 ## [1.0.1] - 2026-08-05
 
 ### Added
+
 - warnetech ai command for Nemotron integration
 - Streaming support for reasoning tokens
 
 ### Fixed
+
 - Rate limit handling in Worker
 - SSH key validation in gh-push
 
 ### Security
+
 - Implemented AES-256-GCM encryption
 - Added anti-tamper heuristics
 ```
@@ -208,6 +232,7 @@ Create CHANGELOG.md entry:
 ## Reviewing PRs
 
 ### Before Reviewing
+
 ```bash
 # Check out PR branch locally
 git fetch origin
@@ -222,6 +247,7 @@ warnetech ai "test prompt"
 ```
 
 ### Review Checklist
+
 - [ ] Code follows standards (04_CODE_STANDARDS.md)
 - [ ] Tests added/updated
 - [ ] No secrets committed
@@ -231,6 +257,7 @@ warnetech ai "test prompt"
 - [ ] Documentation updated
 
 ### Approval & Merge
+
 ```bash
 # After approval, merge to development
 git checkout claude/termux-cli-cloudflare-nemotron-pve6ca
@@ -243,6 +270,7 @@ git push origin claude/termux-cli-cloudflare-nemotron-pve6ca
 ## Resolving Merge Conflicts
 
 ### When Conflicts Occur
+
 ```bash
 # Fetch latest
 git fetch origin
@@ -264,6 +292,7 @@ git push -u origin feat/branch --force-with-lease
 ```
 
 ### Conflict Guidelines
+
 - Keep code that makes sense from both sides
 - Avoid deleting large sections without reason
 - Test after resolving
@@ -274,6 +303,7 @@ git push -u origin feat/branch --force-with-lease
 ## Disaster Recovery
 
 ### Undo Recent Commits
+
 ```bash
 # Undo last commit (keep changes)
 git reset HEAD~1
@@ -287,6 +317,7 @@ git push -u origin <branch> --force-with-lease
 ```
 
 ### Recovering Deleted Commits
+
 ```bash
 # Find deleted commit
 git reflog
@@ -296,6 +327,7 @@ git reset --hard <commit-hash>
 ```
 
 ### Stashing Changes
+
 ```bash
 # Save uncommitted changes
 git stash
@@ -315,6 +347,7 @@ git stash drop stash@{0}
 ## Tips
 
 ### Useful Aliases
+
 ```bash
 git config --global alias.co checkout
 git config --global alias.br branch
@@ -326,6 +359,7 @@ git config --global alias.visual 'log --graph --oneline --all'
 ```
 
 ### Viewing History
+
 ```bash
 # View last 5 commits
 git log -5
@@ -341,6 +375,7 @@ git log --graph --oneline --all
 ```
 
 ### Before Pushing
+
 ```bash
 # Review changes before push
 git diff origin/<branch>

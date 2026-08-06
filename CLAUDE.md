@@ -1,6 +1,7 @@
 # Claude Instructions for claude-command-cli
 
 ## Role
+
 Claude is the primary developer for this project. This document defines the scope, constraints, and best practices for maintaining and extending the architecture.
 
 ## Architecture to Maintain
@@ -64,6 +65,7 @@ The canonical CLI is `warnetech_cli/` (Python), talking to
 ## Principles
 
 ### 1. Separation of Concerns
+
 - **CLI layer**: Local operations, user I/O, config management
 - **Server layer**: Remote logic, external API coordination, security
 - **Repo layer**: Code storage, documentation, version control
@@ -71,6 +73,7 @@ The canonical CLI is `warnetech_cli/` (Python), talking to
 Keep each layer independent. Don't move server logic to CLI or vice versa.
 
 ### 2. Security First
+
 - All network communication: **AES-256-GCM encrypted**
 - Fallback: **ChaCha20-Poly1305**
 - Key derivation: **Argon2id**
@@ -79,7 +82,9 @@ Keep each layer independent. Don't move server logic to CLI or vice versa.
 - Use timing-safe comparisons for secrets
 
 ### 3. Modular Commands
+
 Each command should:
+
 - Have its own handler (warnetech_server/routes.py)
 - Be independent from other commands
 - Include error handling
@@ -87,17 +92,19 @@ Each command should:
 - Have clear help documentation
 
 ### 4. Atomic Commits
+
 - One feature per commit
 - Working code (tests pass)
 - Clear commit message following format:
   ```
   <type>: <description>
-  
+
   <optional details>
   ```
 - Types: feat, fix, refactor, test, docs, chore
 
 ### 5. Documentation First
+
 - Update docs before or alongside code
 - Keep architecture diagram synchronized
 - Document new endpoints in docs/06_WORKER_SPEC.md (legacy) or the
@@ -108,6 +115,7 @@ Each command should:
 ## Development Workflow
 
 ### Starting a Feature
+
 ```bash
 # Start from development branch
 git checkout claude/termux-cli-cloudflare-nemotron-pve6ca
@@ -127,6 +135,7 @@ git push -u origin feat/feature-name
 ```
 
 ### Merging Back
+
 ```bash
 # After testing/review
 git checkout claude/termux-cli-cloudflare-nemotron-pve6ca
@@ -140,7 +149,9 @@ git branch -d feat/feature-name
 ## Safe Extension Patterns
 
 ### Adding a New CLI Command
+
 1. **Create handler in warnetech_server/routes.py**
+
    ```python
    def handle_newcmd(req: Request, deps: ServerDependencies) -> Response:
        return Response(status=200, body={"result": ...})
@@ -160,13 +171,16 @@ git branch -d feat/feature-name
    ```
 
 ### Adding a New API Integration
+
 1. **Create a connector in warnetech_connectors/**
+
    ```python
    def fetch_newapi(source: str, config: ConnectorsConfig = DEFAULT_CONFIG) -> dict:
        ...
    ```
 
 2. **Use it from the server or AI controller**
+
    ```python
    from warnetech_connectors.newapi import fetch_newapi
    result = fetch_newapi(source)
@@ -181,6 +195,7 @@ git branch -d feat/feature-name
    ```
 
 ### Adding a New Utility Function
+
 - Keep utilities focused (one responsibility)
 - Place in appropriate utils/ directory
 - Export as named function or default
@@ -188,6 +203,7 @@ git branch -d feat/feature-name
 - Document with JSDoc comment
 
 ### Extending Security
+
 - New encryption: extend `warnetech_envelope` — never add a second
   implementation; that is what broke the CLI/Worker channel
 - New validation: add to `warnetech_server/security.py`
@@ -197,6 +213,7 @@ git branch -d feat/feature-name
 ## Things to Avoid
 
 ### ❌ Do NOT
+
 - Hardcode API keys or secrets anywhere
 - Log plaintext sensitive data
 - Mix CLI and server logic
@@ -209,6 +226,7 @@ git branch -d feat/feature-name
 - Commit node_modules or build artifacts
 
 ### ✅ Do Instead
+
 - Use environment variables for secrets
 - Log only sanitized data
 - Keep layers separated
@@ -223,6 +241,7 @@ git branch -d feat/feature-name
 ## Environment Setup
 
 ### Required
+
 ```bash
 # Python — there is no requirements.txt; dependencies are declared in
 # pyproject.toml. The dev extra pulls in pytest and ruff.
@@ -238,6 +257,7 @@ npm test        # Jest
 ```
 
 ### Local Development
+
 ```bash
 # Terminal 1: Start warnetech-server
 python -m warnetech_server.app
@@ -247,6 +267,7 @@ python -m warnetech_cli.main status
 ```
 
 ### Deployment
+
 ```bash
 # Deploy warnetech-server
 python -m warnetech_server.app
@@ -258,6 +279,7 @@ curl http://localhost:8080/health
 ## Code Review Checklist
 
 Before committing, verify:
+
 - [ ] Code follows 04_CODE_STANDARDS.md
 - [ ] No secrets in code or commit message
 - [ ] Tests added/updated (>80% coverage)
@@ -272,6 +294,7 @@ Before committing, verify:
 ## Testing Strategy
 
 ### Unit Tests
+
 - Test each module in isolation
 - Mock external APIs
 - Test error cases
@@ -282,6 +305,7 @@ pytest tests/ -k server
 ```
 
 ### Integration Tests
+
 - Test full CLI → server → API flow
 - Test encryption/decryption round-trip
 - Test error propagation
@@ -291,6 +315,7 @@ npm run test:integration
 ```
 
 ### Manual Testing
+
 ```bash
 # Test locally
 npm run dev
@@ -304,6 +329,7 @@ npm run dev
 ## Documentation Maintenance
 
 Keep these synchronized:
+
 - **02_ARCHITECTURE_MAP.md** - Update if architecture changes
 - **05_CLI_COMMANDS.md** - Add new commands here
 - **06_WORKER_SPEC.md** - Legacy Worker harness only
@@ -313,12 +339,14 @@ Keep these synchronized:
 ## Version Control
 
 ### Branch Strategy
+
 - **Development**: `claude/termux-cli-cloudflare-nemotron-pve6ca`
 - **Features**: `feat/feature-name` (from development)
 - **Fixes**: `fix/issue-name` (from development)
 - **Main**: `main` (production-ready, auto-deployed)
 
 ### Commit Message Format
+
 ```
 feat: add warnetech ai command
 fix: handle rate limit responses
@@ -331,6 +359,7 @@ chore: upgrade dependencies
 ## When to Ask for Help
 
 Ask the user (don't just decide) when:
+
 - Removing significant functionality
 - Making major architecture changes
 - Changing security/encryption approach
@@ -342,6 +371,7 @@ Ask the user (don't just decide) when:
 ## Common Tasks
 
 ### Adding a New Command
+
 1. Create handler in warnetech_server/routes.py
 2. Register the route in routes.py
 3. Add CLI command in warnetech_cli/commands.py
@@ -350,6 +380,7 @@ Ask the user (don't just decide) when:
 6. Commit: `feat: add warnetech <cmd> command`
 
 ### Fixing a Bug
+
 1. Create feature branch `fix/description`
 2. Write failing test that reproduces bug
 3. Fix the bug
@@ -357,12 +388,14 @@ Ask the user (don't just decide) when:
 5. Commit: `fix: resolve issue description`
 
 ### Updating Documentation
+
 1. Edit relevant markdown file
 2. Update related files (architecture, standards)
 3. Verify links still work
 4. Commit: `docs: update documentation topic`
 
 ### Deploying Changes
+
 1. Ensure all tests pass: `npm test`
 2. Ensure lint passes: `npm run lint`
 3. Merge to development branch
@@ -373,6 +406,7 @@ Ask the user (don't just decide) when:
 ## Success Criteria
 
 A feature is complete when:
+
 - ✅ Code is implemented and tested
 - ✅ Tests pass (>80% coverage)
 - ✅ Lint & format pass
@@ -387,6 +421,7 @@ A feature is complete when:
 ## Contact & Escalation
 
 If you encounter issues:
+
 1. Check the documentation first
 2. Review similar implementations
 3. Check git history for context
@@ -396,6 +431,7 @@ If you encounter issues:
 ## Final Reminder
 
 This architecture is proven and stable. Extend it carefully:
+
 - Don't break the three-layer separation
 - Maintain security standards
 - Keep code modular and testable
