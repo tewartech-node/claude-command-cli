@@ -207,6 +207,7 @@ def produce_ghost_recall_map(ghost_copies: list[dict]) -> dict:
 _RECONSTRUCTION_SYSTEM_MATCH_WEIGHT = 0.35
 _RECONSTRUCTION_TYPE_MATCH_WEIGHT = 0.35
 _RECONSTRUCTION_TIME_PROXIMITY_WEIGHT = 0.30
+_RECONSTRUCTION_TIME_OVERLAP_WEIGHT = 0.30
 
 # How far (in seconds) past the nearest edge of a ghost copy's time_range
 # its time-proximity score decays to zero. One week is generous enough
@@ -250,15 +251,56 @@ def _time_proximity_score(ghost_copy: dict, query_time_epoch: Optional[float]) -
     return max(0.0, 1.0 - distance / _TIME_PROXIMITY_DECAY_SECONDS)
 
 
+def _time_window_overlap_score(
+    ghost_copy: dict, window_start_epoch: Optional[float], window_end_epoch: Optional[float],
+) -> Optional[float]:
+    """Normalized [0, 1] overlap between the copy's time_range and a
+    requested recall window, as intersection-duration / union-duration (a
+    Jaccard-style ratio): 1.0 when the two ranges are identical, 0.0 when
+    they don't overlap at all, and something in between otherwise —
+    unlike _time_proximity_score's single-point decay, this rewards a
+    ghost copy for how much of the *whole requested window* it actually
+    covers. Returns None (not 0.0), matching _time_proximity_score's
+    convention, when there's nothing to compare: a missing/unparseable
+    window or time_range, or an inverted range on either side.
+    """
+    if window_start_epoch is None or window_end_epoch is None or window_end_epoch < window_start_epoch:
+        return None
+    time_range = ghost_copy.get("time_range") or {}
+    start_epoch = _parse_iso_epoch(time_range.get("start"))
+    end_epoch = _parse_iso_epoch(time_range.get("end"))
+    if start_epoch is None or end_epoch is None or end_epoch < start_epoch:
+        return None
+
+    intersection = max(0.0, min(end_epoch, window_end_epoch) - max(start_epoch, window_start_epoch))
+    union = max(end_epoch, window_end_epoch) - min(start_epoch, window_start_epoch)
+
+    if union <= 0.0:
+        # Both ranges collapse to the same zero-duration instant.
+        return 1.0 if start_epoch == window_start_epoch else 0.0
+
+    return intersection / union
+
+
 def score_ghost_relevance(
     ghost_copy: dict,
     system: Optional[str] = None,
     type_: Optional[str] = None,
     query_time: Optional[str] = None,
+    window_start: Optional[str] = None,
+    window_end: Optional[str] = None,
 ) -> float:
     """Continuous relevance score in [0, 1] for one ghost copy, combining
-    system match, type match, and time proximity — independent of
-    embeddings, so it works for callers with no query_embedding at all.
+    system match, type match, single-point time proximity, and — when a
+    requested recall window is supplied — how much of that window the
+    copy's time_range actually overlaps. Independent of embeddings, so it
+    works for callers with no query_embedding at all.
+
+    `window_start`/`window_end` are new, optional, and additive: existing
+    callers that only pass `query_time` (or nothing) see no change in
+    behavior — _time_window_overlap_score() returns None when the window
+    is absent, exactly like the other cues, so it's simply excluded from
+    the weighted average below rather than contributing a 0.
 
     Any cue left unsupplied (None) is excluded from the weighted average
     and the remaining weights renormalize, so a partial query (e.g. system
@@ -266,6 +308,8 @@ def score_ghost_relevance(
     the cues it didn't supply. Supplying nothing scores every candidate 0.0.
     """
     query_time_epoch = _parse_iso_epoch(query_time)
+    window_start_epoch = _parse_iso_epoch(window_start)
+    window_end_epoch = _parse_iso_epoch(window_end)
     weighted_components: list[tuple[float, float]] = []
 
     if system is not None:
@@ -277,6 +321,10 @@ def score_ghost_relevance(
     proximity = _time_proximity_score(ghost_copy, query_time_epoch)
     if proximity is not None:
         weighted_components.append((_RECONSTRUCTION_TIME_PROXIMITY_WEIGHT, proximity))
+
+    overlap = _time_window_overlap_score(ghost_copy, window_start_epoch, window_end_epoch)
+    if overlap is not None:
+        weighted_components.append((_RECONSTRUCTION_TIME_OVERLAP_WEIGHT, overlap))
 
     if not weighted_components:
         return 0.0
