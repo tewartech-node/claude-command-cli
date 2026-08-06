@@ -21,6 +21,7 @@ dev = ["pytest>=8.0", "pytest-asyncio>=0.23"]
 [tool.setuptools]
 packages = [
     "warnetech_envelope",
+    "warnetech_operator",
     "warnetech_server",
     "warnetech_control_plane",
     "warnetech_ai_controller",
