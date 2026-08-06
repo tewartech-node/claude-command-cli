@@ -111,15 +111,25 @@ def build_middleware_chain(config: ServerConfig, rate_limiter: RateLimiter, hand
         return with_envelope(req)
 
     def with_envelope(req: Request) -> Response:
-        """Open a sealed request body, and seal the reply symmetrically.
+        """Open the sealed request body, and seal the reply symmetrically.
 
-        Fail-closed: a body that presents itself as an envelope but does not
-        open is rejected outright rather than falling through as plaintext,
-        so a wrong key or a tampered packet cannot degrade the channel.
+        The envelope is MANDATORY for any request carrying a body. A body
+        that is not an envelope, or that is one but does not open, is
+        rejected outright — a wrong key, a tampered packet, or a plaintext
+        client cannot degrade the channel.
+
+        Bodyless requests (GET, health checks) have nothing to seal and pass
+        through; their replies are sealed only when a channel key exists.
         """
-        sealed = is_envelope(req.json_body)
-        if sealed:
-            api_key = config.api_key or ""
+        api_key = config.api_key or ""
+        has_body = req.json_body is not None
+
+        if has_body:
+            if not is_envelope(req.json_body):
+                log_security_event(
+                    logger, "plaintext_body_rejected", "high", {"path": req.path}
+                )
+                return Response(status=400, body={"error": "envelope_required"})
             try:
                 req.json_body = unseal(req.json_body, api_key)
             except EnvelopeError as exc:
@@ -130,9 +140,9 @@ def build_middleware_chain(config: ServerConfig, rate_limiter: RateLimiter, hand
 
         response = with_auth(req)
 
-        if sealed:
+        if api_key:
             try:
-                response.body = seal(response.body, config.api_key or "")
+                response.body = seal(response.body, api_key)
             except EnvelopeError as exc:
                 logger.error("envelope seal failed", path=req.path, error=str(exc))
                 return Response(status=500, body={"error": "internal_error"})

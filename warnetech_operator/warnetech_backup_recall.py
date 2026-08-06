@@ -39,13 +39,17 @@ def _repo_root() -> Path:
 
 
 def backup_targets() -> list[Path]:
-    root = _repo_root()
+    """Runtime state only.
+
+    Source directories are deliberately excluded: git already versions them,
+    so restoring a backup over the working tree would silently revert
+    committed work. Use `git checkout` to recover source. What is unique to
+    this machine, and therefore worth backing up, is the runtime state.
+    """
     return [
-        root / "warnetech_ai_controller",
-        root / "warnetech_control_plane",
-        root / "warnetech_server",
-        root / "warnetech_envelope",
         STATE_FILE,
+        RUNTIME / "logs",
+        RUNTIME / "tmp",
     ]
 
 

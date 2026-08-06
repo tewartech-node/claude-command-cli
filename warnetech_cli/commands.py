@@ -3,17 +3,16 @@ Command Implementations Module
 Implements all 20 warnetech CLI commands with full functionality.
 """
 
-import json
 import time
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 from pathlib import Path
 
 from warnetech_cli.config import Config
-from warnetech_cli.logging import setup_logging, log_operation
+from warnetech_cli.logging import setup_logging
 # SecurityManager import removed: deprecated and never called (see security.py)
 from warnetech_cli.compression import CompressionManager
-from warnetech_cli.utils import FileUtils, DataUtils
+from warnetech_cli.utils import FileUtils
 from warnetech_cli.retention import RetentionPolicy
 from warnetech_cli.slice_manager import SliceManager
 from warnetech_cli.ai_controller import AIController

@@ -53,6 +53,14 @@ def test_log_creates_directory(runtime, tmp_path):
 # -- backup -----------------------------------------------------------------
 
 
+def test_default_targets_exclude_git_tracked_source(runtime):
+    """Source is versioned by git; restoring a backup over the working tree
+    would silently revert committed work. Backups cover runtime state only."""
+    targets = [str(t) for t in br.backup_targets()]
+    assert all("claude-command-cli" not in t for t in targets)
+    assert any(t.endswith("state.json") for t in targets)
+
+
 def test_backup_writes_manifest(runtime):
     path = br.create_backup(runtime["targets"])
     manifest = json.loads((path / br.MANIFEST_NAME).read_text())

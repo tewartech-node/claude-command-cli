@@ -6,7 +6,7 @@ Provides helper functions for file IO, JSON, NDJSON, Parquet, and subprocess ope
 import json
 import subprocess
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 
 class FileUtils:

@@ -3,9 +3,8 @@ Data Retention Management Module
 Implements three-tier retention policies (Hot, Warm, Ghost) with automatic tier promotion.
 """
 
-from datetime import datetime, timedelta
-from typing import Dict, Any, List, Optional
-from pathlib import Path
+from datetime import datetime
+from typing import Dict, Any, List
 
 
 class RetentionPolicy:

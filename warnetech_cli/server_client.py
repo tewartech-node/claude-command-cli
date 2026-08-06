@@ -23,14 +23,15 @@ class ServerClient:
         self._base_url = (config.get("server_url") or "").rstrip("/")
         self._api_key = config.get("api_key") or ""
         self._timeout = 10
-        # Bodies are sealed in the canonical AES-256-GCM envelope whenever an
-        # API key is available. Without one there is no channel key, so the
-        # request goes out in plaintext and the server answers in kind.
-        self._encrypt = bool(self._api_key)
 
     def _request(self, method: str, path: str, params: Optional[dict] = None, body: Optional[Any] = None) -> dict:
         if not self._base_url:
             return {"error": "server_url is not configured"}
+        if not self._api_key:
+            # The envelope is mandatory, and the API key is the channel key.
+            # Without one there is nothing to seal with, so refuse rather
+            # than silently downgrade to plaintext.
+            return {"error": "api_key is not configured; the encrypted channel requires one"}
 
         url = f"{self._base_url}/{path.lstrip('/')}"
         if params:
@@ -38,16 +39,14 @@ class ServerClient:
             if query:
                 url = f"{url}?{query}"
 
-        if body is not None and self._encrypt:
+        if body is not None:
             body = seal(body, self._api_key)
 
         data = json.dumps(body).encode("utf-8") if body is not None else None
         req = urllib.request.Request(url, data=data, method=method)
         req.add_header("Content-Type", "application/json")
-        if self._api_key:
-            req.add_header("Authorization", f"Bearer {self._api_key}")
-        if self._encrypt:
-            req.add_header("X-Warnetech-Envelope", "aes-256-gcm")
+        req.add_header("Authorization", f"Bearer {self._api_key}")
+        req.add_header("X-Warnetech-Envelope", "aes-256-gcm")
 
         try:
             with urllib.request.urlopen(req, timeout=self._timeout) as resp:

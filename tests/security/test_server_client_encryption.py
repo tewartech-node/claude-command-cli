@@ -62,27 +62,18 @@ def test_client_seals_request_bodies(monkeypatch):
     assert result == {"ok": True}, "sealed response was not opened"
 
 
-def test_client_sends_plaintext_when_no_api_key(monkeypatch):
-    captured = {}
+def test_client_refuses_to_send_without_an_api_key(monkeypatch):
+    """The envelope is mandatory and the API key is the channel key, so a
+    missing key must fail rather than silently downgrade to plaintext."""
+    called = []
+    monkeypatch.setattr(
+        "urllib.request.urlopen", lambda *a, **k: called.append(1)
+    )
 
-    def fake_urlopen(req, timeout=None):
-        captured["body"] = json.loads(req.data.decode())
+    result = _client(api_key="").post("/score", {"payload": "x"})
 
-        class _Resp:
-            def read(self):
-                return b"{}"
-
-            def __enter__(self):
-                return self
-
-            def __exit__(self, *a):
-                return False
-
-        return _Resp()
-
-    monkeypatch.setattr("urllib.request.urlopen", fake_urlopen)
-    _client(api_key="").post("/score", {"payload": "x"})
-    assert captured["body"] == {"payload": "x"}
+    assert "api_key" in result["error"]
+    assert called == [], "a request was sent despite having no channel key"
 
 
 def test_client_reports_undecryptable_response(monkeypatch):
@@ -162,7 +153,8 @@ def test_server_rejects_unopenable_envelope_fail_closed():
     assert "json_body" not in seen, "handler ran despite a failed decrypt"
 
 
-def test_server_still_accepts_plaintext_and_replies_plaintext():
+def test_server_rejects_a_plaintext_body():
+    """A body that is not an envelope is refused; the handler never runs."""
     chain, seen, Request = _chain()
     response = chain(
         Request(
@@ -172,8 +164,27 @@ def test_server_still_accepts_plaintext_and_replies_plaintext():
             body=json.dumps({"command": "ping"}).encode(),
         )
     )
+    assert response.status == 400
+    # Rejections from the envelope layer are plaintext: a client that failed
+    # to seal correctly may have no usable key to open a sealed error with.
+    assert response.body["error"] == "envelope_required"
+    assert "json_body" not in seen
+
+
+def test_bodyless_request_passes_and_reply_is_sealed():
+    """GET and health checks carry nothing to seal, but still get a sealed
+    reply so the channel stays uniform in one direction."""
+    chain, seen, Request = _chain()
+    response = chain(
+        Request(
+            method="GET",
+            path="/status",
+            headers={"authorization": f"Bearer {API_KEY}"},
+            body=b"",
+        )
+    )
     assert response.status == 200
-    assert not is_envelope(response.body)
+    assert is_envelope(response.body)
 
 
 # --------------------------------------------------------------------------

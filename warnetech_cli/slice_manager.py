@@ -4,9 +4,7 @@ Implements time-based and domain-based data slicing with metadata generation.
 """
 
 from datetime import datetime, timedelta
-from typing import Dict, Any, List, Optional
-from pathlib import Path
-import json
+from typing import Dict, Any, List
 
 
 class SliceManager:

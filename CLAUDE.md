@@ -224,6 +224,13 @@ git branch -d feat/feature-name
 
 ### Required
 ```bash
+# Python — there is no requirements.txt; dependencies are declared in
+# pyproject.toml. The dev extra pulls in pytest and ruff.
+pip install -e ".[dev]"
+pytest -q                  # Python tests
+ruff check .               # Python lint
+
+# JavaScript
 npm install
 npm run lint    # ESLint
 npm run format  # Prettier
