@@ -7,6 +7,10 @@ and have a different contract (they return and take the nonce separately).
 
 import pytest
 
+pytestmark = pytest.mark.filterwarnings(
+    "ignore:SecurityManager is deprecated:DeprecationWarning"
+)
+
 from warnetech_cli.security import SecurityManager
 
 

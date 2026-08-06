@@ -113,35 +113,16 @@ def gunzip_bytes(data: bytes) -> bytes:
 
 
 # ---------------------------------------------------------------------------
-# Encryption (AES-256-GCM via `cryptography`, mirroring the Worker's cipher)
+# Encryption
+#
+# These are re-exports, not an implementation. AES-256-GCM is defined once, in
+# warnetech_envelope; this module previously carried an independent copy, which
+# is the duplication pattern that produced the CLI/Worker wire-format break.
+# slice_engine.encrypt() imports these names, so they are kept as aliases
+# rather than removed.
 # ---------------------------------------------------------------------------
 
-
-def aes_gcm_encrypt(key: bytes, plaintext: bytes, associated_data: bytes | None = None) -> tuple[bytes, bytes]:
-    """Returns (nonce, ciphertext_with_tag). Requires the `cryptography` package."""
-    try:
-        from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-    except ImportError as exc:  # pragma: no cover - environment dependent
-        raise RuntimeError(
-            "aes_gcm_encrypt requires the 'cryptography' package: pip install cryptography"
-        ) from exc
-
-    nonce = os.urandom(12)
-    aesgcm = AESGCM(key)
-    ciphertext = aesgcm.encrypt(nonce, plaintext, associated_data)
-    return nonce, ciphertext
-
-
-def aes_gcm_decrypt(key: bytes, nonce: bytes, ciphertext: bytes, associated_data: bytes | None = None) -> bytes:
-    try:
-        from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-    except ImportError as exc:  # pragma: no cover - environment dependent
-        raise RuntimeError(
-            "aes_gcm_decrypt requires the 'cryptography' package: pip install cryptography"
-        ) from exc
-
-    aesgcm = AESGCM(key)
-    return aesgcm.decrypt(nonce, ciphertext, associated_data)
+from warnetech_envelope import aes_gcm_decrypt, aes_gcm_encrypt  # noqa: E402,F401
 
 
 # ---------------------------------------------------------------------------

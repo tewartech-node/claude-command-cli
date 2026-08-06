@@ -12,36 +12,63 @@ Claude is the primary developer for this project. This document defines the scop
 
 Layer 1: Termux CLI (Local)
 ├── Bash-based command runner
-├── Sends encrypted commands to Worker
+├── Sends encrypted commands to warnetech-server
 ├── Opens Claude chats with repo context
 ├── Manages local configuration (~/.claude-cli/config.json)
 └── Handles git push/pull operations
 
-Layer 2: Cloudflare Worker (Remote)
+Layer 2: warnetech-server (CANONICAL)
 ├── Receives encrypted CLI commands
 ├── Authenticates via API_KEY
-├── Routes to appropriate handler (ai, gh, sys)
-├── Calls external APIs (NVIDIA, GitHub, Warnetech)
+├── Routes to handlers (warnetech_server/routes.py)
+├── Calls control-plane, Supabase, external intel
 ├── Returns JSON responses
-└── Manages encryption/decryption
+└── Opens/seals the warnetech_envelope (AES-256-GCM)
+
+Layer 2b: Cloudflare Worker (LEGACY — test harness only)
+├── worker/ + wrangler.toml, retained for the legacy Node CLI
+├── NOT part of the canonical architecture
+├── Do not add features here; add them to warnetech-server
+└── See "Cloudflare status" below
 
 Layer 3: GitHub Repository
 ├── Stores CLI scripts & executables
-├── Stores Worker code (Cloudflare Workers)
+├── Stores server code + legacy Worker harness
 ├── Stores complete documentation
 ├── Stores Claude instructions (this file)
 ├── Tracks development on feature branches
 └── Maintains version control & history
 ```
 
+## Cloudflare status
+
+The architecture is **Cloudflare-free and Termux-native**. The canonical
+Layer 2 is `warnetech-server`, per
+`docs/AI-FIREWALL-COMPLETE-REFERENCE.txt`, which lists the system as
+relying only on warnetech-server, warnetech-control-plane,
+warnetech-project-supabase, warnetech-backups and warnetech-cli.
+
+`worker/` and `warnetech_cli_legacy/` are **legacy test harness**. They
+still build and their tests still pass, so they are kept for regression
+coverage of the wire format, but:
+
+- No new features go into `worker/`. Add them to `warnetech_server/`.
+- The 16 outstanding TODO stubs in `worker/` and
+  `warnetech_cli_legacy/warnetech` will not be implemented.
+- `docs/06_WORKER_SPEC.md` describes the legacy harness, not the
+  canonical contract.
+
+The canonical CLI is `warnetech_cli/` (Python), talking to
+`warnetech-server` over the `warnetech_envelope` AES-256-GCM channel.
+
 ## Principles
 
 ### 1. Separation of Concerns
 - **CLI layer**: Local operations, user I/O, config management
-- **Worker layer**: Remote logic, external API coordination, security
+- **Server layer**: Remote logic, external API coordination, security
 - **Repo layer**: Code storage, documentation, version control
 
-Keep each layer independent. Don't move Worker logic to CLI or vice versa.
+Keep each layer independent. Don't move server logic to CLI or vice versa.
 
 ### 2. Security First
 - All network communication: **AES-256-GCM encrypted**
@@ -53,7 +80,7 @@ Keep each layer independent. Don't move Worker logic to CLI or vice versa.
 
 ### 3. Modular Commands
 Each command should:
-- Have its own handler (worker/commands/*.js)
+- Have its own handler (warnetech_server/routes.py)
 - Be independent from other commands
 - Include error handling
 - Support CLI piping/chaining
@@ -73,7 +100,8 @@ Each command should:
 ### 5. Documentation First
 - Update docs before or alongside code
 - Keep architecture diagram synchronized
-- Document new endpoints in WORKER_SPEC.md
+- Document new endpoints in docs/06_WORKER_SPEC.md (legacy) or the
+  warnetech-server route table
 - Add commands to CLI_COMMANDS.md
 - Explain non-obvious logic with comments
 
@@ -112,71 +140,44 @@ git branch -d feat/feature-name
 ## Safe Extension Patterns
 
 ### Adding a New CLI Command
-1. **Create handler in worker/commands/**
-   ```javascript
-   // worker/commands/newcmd.js
-   async function handleNewcmd(args, env) {
-     // Implementation
-     return result;
-   }
-   export default handleNewcmd;
+1. **Create handler in warnetech_server/routes.py**
+   ```python
+   def handle_newcmd(req: Request, deps: ServerDependencies) -> Response:
+       return Response(status=200, body={"result": ...})
    ```
 
-2. **Register in worker/index.js**
-   ```javascript
-   const COMMAND_HANDLERS = {
-     // ...existing...
-     newcmd: handleNewcmd,
-   };
-   ```
+2. **Register the route** in the router table in `routes.py`
 
-3. **Add CLI command in warnetech_cli_legacy/warnetech**
-   ```javascript
-   program
-     .command('newcmd <arg>')
-     .description('Description')
-     .action(async (arg, options) => {
-       // CLI logic
-     });
-   ```
+3. **Add the CLI command in warnetech_cli/commands.py**, calling it
+   through `ServerClient` so the request is sealed in the
+   `warnetech_envelope`
 
 4. **Document in docs/05_CLI_COMMANDS.md**
 
 5. **Test**
    ```bash
-   npm test
-   warnetech newcmd "test"
+   pytest tests/
    ```
 
 ### Adding a New API Integration
-1. **Create utility in worker/utils/**
-   ```javascript
-   // worker/utils/newapi.js
-   async function call(params, env) {
-     // Implementation
-   }
-   export default { call };
+1. **Create a connector in warnetech_connectors/**
+   ```python
+   def fetch_newapi(source: str, config: ConnectorsConfig = DEFAULT_CONFIG) -> dict:
+       ...
    ```
 
-2. **Use in appropriate handler**
-   ```javascript
-   // worker/commands/ai.js or gh.js
-   import api from '../utils/newapi.js';
-   const result = await api.call(args, env);
+2. **Use it from the server or AI controller**
+   ```python
+   from warnetech_connectors.newapi import fetch_newapi
+   result = fetch_newapi(source)
    ```
 
-3. **Add error handling**
-   ```javascript
-   try {
-     return await api.call(args, env);
-   } catch (error) {
-     throw new Error(`API error: ${error.message}`);
-   }
-   ```
+3. **Add error handling** — connectors fail soft, returning
+   `{"error": ...}` rather than raising
 
 4. **Test in isolation**
    ```bash
-   npm test -- worker/utils/newapi.js
+   pytest tests/connectors/
    ```
 
 ### Adding a New Utility Function
@@ -187,9 +188,10 @@ git branch -d feat/feature-name
 - Document with JSDoc comment
 
 ### Extending Security
-- New encryption: add to worker/utils/validate.js
-- New validation: add to validateRequest function
-- New security check: add to antiTamperCheck function
+- New encryption: extend `warnetech_envelope` — never add a second
+  implementation; that is what broke the CLI/Worker channel
+- New validation: add to `warnetech_server/security.py`
+- New middleware check: add to the chain in `warnetech_server/middleware.py`
 - Always maintain backward compatibility
 
 ## Things to Avoid
@@ -197,7 +199,7 @@ git branch -d feat/feature-name
 ### ❌ Do NOT
 - Hardcode API keys or secrets anywhere
 - Log plaintext sensitive data
-- Mix CLI and Worker logic
+- Mix CLI and server logic
 - Create circular dependencies
 - Skip tests when committing
 - Force push to main/master branch
@@ -230,21 +232,20 @@ npm test        # Jest
 
 ### Local Development
 ```bash
-# Terminal 1: Start Worker dev server
-npm run dev
+# Terminal 1: Start warnetech-server
+python -m warnetech_server.app
 
 # Terminal 2: Test CLI commands
-./warnetech_cli_legacy/warnetech status
-./warnetech_cli_legacy/warnetech ai "test prompt"
+python -m warnetech_cli.main status
 ```
 
 ### Deployment
 ```bash
-# Deploy Worker to Cloudflare
-npm run deploy
+# Deploy warnetech-server
+python -m warnetech_server.app
 
 # Verify deployment
-curl https://your-worker.workers.dev/health
+curl http://localhost:8080/health
 ```
 
 ## Code Review Checklist
@@ -270,11 +271,11 @@ Before committing, verify:
 - Aim for >80% coverage
 
 ```bash
-npm test -- worker/commands/ai.js
+pytest tests/ -k server
 ```
 
 ### Integration Tests
-- Test full CLI → Worker → API flow
+- Test full CLI → server → API flow
 - Test encryption/decryption round-trip
 - Test error propagation
 
@@ -298,7 +299,7 @@ npm run dev
 Keep these synchronized:
 - **02_ARCHITECTURE_MAP.md** - Update if architecture changes
 - **05_CLI_COMMANDS.md** - Add new commands here
-- **06_WORKER_SPEC.md** - Document endpoints
+- **06_WORKER_SPEC.md** - Legacy Worker harness only
 - **04_CODE_STANDARDS.md** - Update standards if needed
 - **03_TASKS_FOR_CLAUDE.md** - Check off completed tasks
 
@@ -334,9 +335,9 @@ Ask the user (don't just decide) when:
 ## Common Tasks
 
 ### Adding a New Command
-1. Create handler in worker/commands/
-2. Register in COMMAND_HANDLERS
-3. Add CLI command in warnetech_cli_legacy/warnetech
+1. Create handler in warnetech_server/routes.py
+2. Register the route in routes.py
+3. Add CLI command in warnetech_cli/commands.py
 4. Add tests
 5. Document in 05_CLI_COMMANDS.md
 6. Commit: `feat: add warnetech <cmd> command`

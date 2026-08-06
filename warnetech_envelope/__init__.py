@@ -40,6 +40,8 @@ __all__ = [
     "PBKDF2_ITERATIONS",
     "PBKDF2_SALT",
     "EnvelopeError",
+    "aes_gcm_encrypt",
+    "aes_gcm_decrypt",
     "derive_key",
     "encrypt_data",
     "decrypt_data",
@@ -69,6 +71,26 @@ def _aesgcm(key: bytes):
             "the 'cryptography' package is required: pip install cryptography"
         ) from exc
     return AESGCM(key)
+
+
+def aes_gcm_encrypt(
+    key: bytes, plaintext: bytes, associated_data: bytes | None = None
+) -> tuple[bytes, bytes]:
+    """Low-level primitive: returns (nonce, ciphertext_with_tag).
+
+    Used for at-rest encryption (see warnetech_control_plane.slice_engine),
+    where the nonce is stored alongside the ciphertext rather than prefixed
+    to it. The channel envelope uses :func:`encrypt_data` instead.
+    """
+    nonce = os.urandom(IV_LENGTH)
+    return nonce, _aesgcm(key).encrypt(nonce, plaintext, associated_data)
+
+
+def aes_gcm_decrypt(
+    key: bytes, nonce: bytes, ciphertext: bytes, associated_data: bytes | None = None
+) -> bytes:
+    """Inverse of :func:`aes_gcm_encrypt`."""
+    return _aesgcm(key).decrypt(nonce, ciphertext, associated_data)
 
 
 def derive_key(api_key: str) -> bytes:

@@ -50,7 +50,7 @@ def normalize_reputation(data: dict) -> dict:
     verdict = data.get("verdict") or {}
     return {
         "indicator": data.get("target"),
-        "indicator_type": verdict.get("type", "url"),
+        "indicator_type": verdict.get("type", "url") if isinstance(verdict, dict) else "url",
         "source": data.get("source", "reputation_service"),
         "confidence": float(verdict.get("confidence", 0.5)) if isinstance(verdict, dict) else 0.5,
         "severity": verdict.get("severity", "medium") if isinstance(verdict, dict) else "medium",

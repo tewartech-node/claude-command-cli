@@ -11,7 +11,7 @@ from pathlib import Path
 
 from warnetech_cli.config import Config
 from warnetech_cli.logging import setup_logging, log_operation
-from warnetech_cli.security import SecurityManager
+# SecurityManager import removed: deprecated and never called (see security.py)
 from warnetech_cli.compression import CompressionManager
 from warnetech_cli.utils import FileUtils, DataUtils
 from warnetech_cli.retention import RetentionPolicy
