@@ -20,7 +20,8 @@ except ImportError:
 class SecurityManager:
     """Manages encryption, decryption, and key derivation."""
 
-    PBKDF2_ITERATIONS = 100000
+    # OWASP-recommended minimum for PBKDF2-HMAC-SHA256.
+    PBKDF2_ITERATIONS = 480000
     SALT_LENGTH = 16
     IV_LENGTH = 16
     TAG_LENGTH = 16
