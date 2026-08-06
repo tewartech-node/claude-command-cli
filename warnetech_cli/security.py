@@ -9,7 +9,7 @@ from typing import Tuple
 
 try:
     from cryptography.hazmat.primitives.ciphers.aead import AESGCM
-    from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2
+    from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
     from cryptography.hazmat.primitives import hashes
     from cryptography.hazmat.backends import default_backend
     CRYPTO_AVAILABLE = True
@@ -45,7 +45,7 @@ class SecurityManager:
         if salt is None:
             salt = os.urandom(SecurityManager.SALT_LENGTH)
 
-        kdf = PBKDF2(
+        kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
             length=32,
             salt=salt,
