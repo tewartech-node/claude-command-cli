@@ -162,18 +162,28 @@ class ServerDatabase:
         })
 
     def log_ghost_recall(self, query: dict, fetch_result: dict, plan: Optional[dict] = None) -> bool:
+        """Built directly in the live {event_type, severity, detail} shape
+        (same pattern as log_retention_ghost_creation in
+        warnetech_control_plane/database.py) rather than through
+        log_security_event()'s legacy (event_type, source, details,
+        severity) wrapper — `detail` here IS the jsonb payload, no further
+        remapping needed.
+        """
         fetch_result = fetch_result or {}
-        return self.log_security_event({
+        row = {
             "event_type": "ghost_copy_recalled",
-            "source": "warnetech_server",
-            "details": {
+            "severity": "low",
+            "detail": {
+                "source": "warnetech_server",
                 "mode": fetch_result.get("mode"),
                 "ghost_id": fetch_result.get("ghost_id"),
                 "candidate_count": fetch_result.get("candidate_count"),
                 "selected_ghost_count": (plan or {}).get("selected_ghost_count"),
             },
-            "severity": "low",
-        })
+        }
+        ok = self._request("POST", "security_events", body=[row]) is not None
+        log_database_operation(logger, "write", "security_events", ok)
+        return ok
 
     def store_ghost_metrics(self, metrics: dict) -> Optional[dict]:
         return self.persist_ai_decision({

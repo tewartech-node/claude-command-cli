@@ -111,6 +111,19 @@ class SupabaseDatabase:
         logger.info("security event logged", event_type=row["event_type"], ok=ok)
         return ok
 
+    def log_retention_ghost_creation(self, detail: dict, severity: str = "low") -> bool:
+        """Dedicated logger for retention_engine.apply_ghost_tier(), built
+        directly in the live {event_type, severity, detail} shape rather
+        than going through log_security_event()'s legacy
+        (event_type, source, details, severity) wrapper — `detail` here IS
+        the jsonb payload, no further remapping needed.
+        """
+        row = {"event_type": "ghost_copy_created", "severity": severity, "detail": detail}
+        result = self._request("POST", "security_events", body=[row])
+        ok = result is not None
+        logger.info("retention ghost creation logged", ghost_id=detail.get("ghost_id"), ok=ok)
+        return ok
+
     # -- RPC (complex analytics run as Postgres functions) -------------------
 
     def call_rpc(self, function_name: str, args: dict) -> Any:
