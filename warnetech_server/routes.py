@@ -9,6 +9,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Callable, Optional
 
+from warnetech_ai_controller import recall_planner
+
 from .ai_integration import AIIntegration
 from .cli_integration import CLIIntegration
 from .config import ServerConfig
@@ -118,12 +120,37 @@ def post_ghost_create(req: Request, deps: ServerDependencies) -> Response:
     return Response(status=200 if result is not None else 502, body={"result": result})
 
 
+def _integrity_verified_ghost_copies(fetch_result: dict) -> list[dict]:
+    """Ghost copies from a control_plane.ghost_recall() result that have
+    actually passed verify_ghost_integrity() — a direct fetch's single
+    `record` when its `integrity.valid` is True, or query-mode candidates
+    filtered to `integrity_valid`. Used to gate reconstruction-plan
+    building on integrity, not just on the recall itself having succeeded.
+    """
+    if fetch_result.get("mode") == "direct":
+        if (fetch_result.get("integrity") or {}).get("valid"):
+            return [fetch_result["record"]]
+        return []
+    return [c for c in fetch_result.get("candidates", []) if c.get("integrity_valid")]
+
+
 def post_ghost_recall(req: Request, deps: ServerDependencies) -> Response:
     """Accepts either `ghost_id` (direct fetch) or `query` (filter fields
     for candidate matching). control_plane.ghost_recall() already runs
     fetch_ghost_copy()/verify_ghost_integrity() for every candidate; this
     handler's own job is handing that metadata (and payload, for a direct
     fetch) to warnetech_ai_controller for recall planning.
+
+    Additionally builds an optional `reconstruction_plan` (recall_planner.
+    build_reconstruction_plan()) from whichever ghost copies actually
+    passed integrity verification — never from unverified ones — using
+    `query.system`/`query.type` and top-level `query_time`/`window_start`/
+    `window_end` request fields when present. `window_start`/`window_end`
+    are forwarded only when the request actually supplies them, so an
+    omitted window behaves exactly as build_reconstruction_plan() already
+    does by default. Every existing response field is unchanged;
+    `reconstruction_plan` is purely additive and is `None` whenever there
+    are no integrity-verified candidates to build one from.
     """
     body = validate_json_body(req.json_body or {})
     fetch_result = deps.control_plane.ghost_recall(body)
@@ -138,8 +165,27 @@ def post_ghost_recall(req: Request, deps: ServerDependencies) -> Response:
         summary = deps.ai.summarize_ghost_copies(ghost_copies)
         plan = deps.ai.ghost_recall_plan(ghost_copies, body.get("query_embedding"), body.get("query"))
 
+    reconstruction_plan = None
+    verified_copies = _integrity_verified_ghost_copies(fetch_result)
+    if verified_copies:
+        query = body.get("query") or {}
+        window_kwargs: dict = {}
+        if body.get("window_start") is not None:
+            window_kwargs["window_start"] = body["window_start"]
+        if body.get("window_end") is not None:
+            window_kwargs["window_end"] = body["window_end"]
+        reconstruction_plan = recall_planner.build_reconstruction_plan(
+            verified_copies, system=query.get("system"), type_=query.get("type"),
+            query_time=body.get("query_time"), **window_kwargs,
+        ).to_dict()
+
     deps.database.log_ghost_recall(body, fetch_result, plan)
-    return Response(status=200, body={"result": fetch_result, "summary": summary, "recall_plan": plan})
+    return Response(status=200, body={
+        "result": fetch_result,
+        "summary": summary,
+        "recall_plan": plan,
+        "reconstruction_plan": reconstruction_plan,
+    })
 
 
 def post_retention_apply(req: Request, deps: ServerDependencies) -> Response:

@@ -377,6 +377,8 @@ def build_reconstruction_plan(
     type_: Optional[str] = None,
     query_time: Optional[str] = None,
     order: str = "relevance",
+    window_start: Optional[str] = None,
+    window_end: Optional[str] = None,
 ) -> ReconstructionPlan:
     """Builds a multi-ghost ReconstructionPlan: every candidate that scores
     above 0.0 via score_ghost_relevance() becomes a step, not just a single
@@ -386,9 +388,17 @@ def build_reconstruction_plan(
     `order` picks the step sequence: "relevance" (highest score first, the
     default) or "time" (chronological by time_range.start, for a plan
     meant to be replayed in wall-clock order during reconstruction).
+
+    `window_start`/`window_end` are new, optional, and additive — forwarded
+    straight through to score_ghost_relevance()'s own window overlap
+    scoring. Existing callers that omit them see no change: both default
+    to None, exactly as score_ghost_relevance() itself already expects.
     """
     scored = [
-        (copy, score_ghost_relevance(copy, system=system, type_=type_, query_time=query_time))
+        (copy, score_ghost_relevance(
+            copy, system=system, type_=type_, query_time=query_time,
+            window_start=window_start, window_end=window_end,
+        ))
         for copy in ghost_copies
     ]
     scored = [(copy, score) for copy, score in scored if score > 0.0]
