@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
-from typing import Any, Optional
+from typing import Optional
 
 from .config import AIControllerConfig, DEFAULT_CONFIG
 from .utils import cosine_similarity, now_iso

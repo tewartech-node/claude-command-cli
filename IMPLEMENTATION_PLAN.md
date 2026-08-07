@@ -7,15 +7,18 @@ Prioritized guide for implementing CLI commands and Worker endpoints.
 These commands establish the foundation for all future features.
 
 ### 1.1 `warnetech ping`
+
 **Priority**: 🔴 CRITICAL (do first)
 **Purpose**: Verify connectivity between CLI and Worker
 
 **CLI Implementation**:
+
 ```bash
 warnetech ping
 ```
 
 **Expected Output**:
+
 ```
 ✓ Ping: Connected
   Worker: https://your-worker.workers.dev
@@ -23,6 +26,7 @@ warnetech ping
 ```
 
 **Worker Endpoint**: `POST /cli`
+
 ```json
 Request:
 {
@@ -38,7 +42,8 @@ Response:
 }
 ```
 
-**Why First**: 
+**Why First**:
+
 - Simplest command (no external APIs)
 - Tests basic CLI ↔ Worker communication
 - Validates encryption/decryption
@@ -47,15 +52,18 @@ Response:
 ---
 
 ### 1.2 `warnetech gh-open "<repo>"`
+
 **Priority**: 🔴 CRITICAL (do second)
 **Purpose**: Get Claude link for a GitHub repository
 
 **CLI Implementation**:
+
 ```bash
 warnetech gh-open "tewartech-node/claude-command-cli"
 ```
 
 **Expected Output**:
+
 ```
 ✓ Repository: tewartech-node/claude-command-cli
 ✓ URL: https://github.com/tewartech-node/claude-command-cli
@@ -65,6 +73,7 @@ Open in Claude? (y/n)
 ```
 
 **Worker Endpoint**: `POST /cli`
+
 ```json
 Request:
 {
@@ -85,6 +94,7 @@ Response:
 ```
 
 **Why Second**:
+
 - No external API calls
 - Simple URL construction
 - Tests Worker command routing
@@ -93,15 +103,18 @@ Response:
 ---
 
 ### 1.3 `warnetech ai "<prompt>"`
+
 **Priority**: 🟠 HIGH (do third)
 **Purpose**: Get AI assistance via NVIDIA Nemotron
 
 **CLI Implementation**:
+
 ```bash
 warnetech ai "explain this code"
 ```
 
 **Expected Output**:
+
 ```
 ✓ Prompt sent
 > Processing...
@@ -109,6 +122,7 @@ warnetech ai "explain this code"
 ```
 
 **Worker Endpoint**: `POST /cli`
+
 ```json
 Request:
 {
@@ -133,6 +147,7 @@ Response:
 ```
 
 **Subtasks**:
+
 - [ ] Implement nemotron.js client
 - [ ] Test with NVIDIA API
 - [ ] Add streaming support (optional for phase 1)
@@ -140,6 +155,7 @@ Response:
 - [ ] Add token counting
 
 **Why Third**:
+
 - Requires external API integration
 - Critical for AI features
 - Tests error handling
@@ -148,15 +164,18 @@ Response:
 ---
 
 ### 1.4 `warnetech gh-push "<message>"`
+
 **Priority**: 🟠 HIGH (do fourth)
 **Purpose**: Commit and push changes to GitHub
 
 **CLI Implementation**:
+
 ```bash
 warnetech gh-push "feat: add new command"
 ```
 
 **Expected Output**:
+
 ```
 ✓ Checking changes...
 ✓ Staging files...
@@ -166,6 +185,7 @@ warnetech gh-push "feat: add new command"
 ```
 
 **Worker Endpoint**: `POST /cli`
+
 ```json
 Request:
 {
@@ -186,10 +206,12 @@ Response:
 ```
 
 **Note**: GitHub automation may be limited in Worker environment
+
 - Consider delegating to CLI itself (using git CLI)
 - Or require GitHub token in config
 
 **Subtasks**:
+
 - [ ] Check if git available in Termux
 - [ ] Implement local git operations in CLI
 - [ ] Or: Implement GitHub API in Worker
@@ -199,15 +221,18 @@ Response:
 ---
 
 ### 1.5 `warnetech gh-pull`
+
 **Priority**: 🟠 HIGH (do fifth)
 **Purpose**: Pull latest changes from GitHub
 
 **CLI Implementation**:
+
 ```bash
 warnetech gh-pull
 ```
 
 **Expected Output**:
+
 ```
 ✓ Fetching...
 ✓ Pulling...
@@ -217,6 +242,7 @@ warnetech gh-pull
 ```
 
 **Worker Endpoint**: `POST /cli`
+
 ```json
 Request:
 {
@@ -245,10 +271,12 @@ Response:
 Once core commands work, add these features.
 
 ### 2.1 `warnetech fix "<file>"`
+
 **Priority**: 🟡 MEDIUM
 **Purpose**: Analyze code and suggest fixes
 
 **Implementation Plan**:
+
 1. Read file in CLI
 2. Send to Worker with diagnostic prompt
 3. Call Nemotron for analysis
@@ -257,10 +285,12 @@ Once core commands work, add these features.
 ---
 
 ### 2.2 `warnetech explain "<file>"`
+
 **Priority**: 🟡 MEDIUM
 **Purpose**: Generate explanation of code
 
 **Implementation Plan**:
+
 1. Read file in CLI
 2. Send to Worker with explanation prompt
 3. Call Nemotron for detailed explanation
@@ -271,10 +301,12 @@ Once core commands work, add these features.
 ## Phase 3: System Commands (Week 5-6)
 
 ### 3.1 `warnetech status`
+
 **Priority**: 🟡 MEDIUM
 **Purpose**: Show system status
 
 **Expected Output**:
+
 ```
 CLI Version: 1.0.0
 ✓ Worker: Connected
@@ -285,12 +317,14 @@ Quotas:
 ```
 
 ### 3.2 `warnetech sync`
+
 **Priority**: 🟡 MEDIUM
 **Purpose**: Sync quotas, baselines, signatures
 
 ---
 
 ### 3.3 `warnetech update`
+
 **Priority**: 🟡 MEDIUM
 **Purpose**: Update CLI to latest version
 
@@ -299,7 +333,9 @@ Quotas:
 ## Testing Strategy
 
 ### Phase 1 Testing
+
 After implementing each Phase 1 command:
+
 1. Test CLI command parsing
 2. Test request encryption
 3. Test Worker endpoint
@@ -308,17 +344,18 @@ After implementing each Phase 1 command:
 6. Test error handling
 
 ### Example Test
+
 ```javascript
-describe('warnetech ping', () => {
-  it('sends ping command to worker', async () => {
-    const response = await sendCommand('ping');
+describe("warnetech ping", () => {
+  it("sends ping command to worker", async () => {
+    const response = await sendCommand("ping");
     expect(response.ok).toBe(true);
-    expect(response.command).toBe('ping');
+    expect(response.command).toBe("ping");
   });
-  
-  it('formats output correctly', async () => {
+
+  it("formats output correctly", async () => {
     const output = formatPingResponse(response);
-    expect(output).toContain('✓ Ping: Connected');
+    expect(output).toContain("✓ Ping: Connected");
   });
 });
 ```
@@ -328,32 +365,33 @@ describe('warnetech ping', () => {
 ## Implementation Checklist
 
 ### Phase 1: Foundation
+
 - [ ] **warnetech ping**
   - [ ] CLI implementation
   - [ ] Worker endpoint
   - [ ] Request encryption
   - [ ] Response decryption
   - [ ] Tests
-  
+
 - [ ] **warnetech gh-open**
   - [ ] CLI implementation
   - [ ] Worker endpoint
   - [ ] URL generation
   - [ ] Tests
-  
+
 - [ ] **warnetech ai**
   - [ ] CLI implementation
   - [ ] Worker endpoint
   - [ ] Nemotron integration
   - [ ] Error handling
   - [ ] Tests
-  
+
 - [ ] **warnetech gh-push**
   - [ ] CLI implementation
   - [ ] Git operations
   - [ ] Error handling
   - [ ] Tests
-  
+
 - [ ] **warnetech gh-pull**
   - [ ] CLI implementation
   - [ ] Git operations
@@ -361,6 +399,7 @@ describe('warnetech ping', () => {
   - [ ] Tests
 
 ### Verification
+
 - [ ] All Phase 1 commands work end-to-end
 - [ ] Tests pass (>80% coverage)
 - [ ] Lint & format pass
@@ -374,6 +413,7 @@ describe('warnetech ping', () => {
 This single endpoint handles all commands.
 
 ### Request Format
+
 ```javascript
 {
   "command": "ping" | "ai" | "gh-open" | "gh-push" | "gh-pull",
@@ -384,6 +424,7 @@ This single endpoint handles all commands.
 ```
 
 ### Response Format (Success)
+
 ```javascript
 {
   "ok": true,
@@ -394,6 +435,7 @@ This single endpoint handles all commands.
 ```
 
 ### Response Format (Error)
+
 ```javascript
 {
   "ok": false,
@@ -404,14 +446,15 @@ This single endpoint handles all commands.
 ```
 
 ### Handler Routing
+
 ```javascript
 // worker/index.js
 const COMMAND_HANDLERS = {
   ping: handlePing,
   ai: handleAi,
-  'gh-open': handleGhOpen,
-  'gh-push': handleGhPush,
-  'gh-pull': handleGhPull
+  "gh-open": handleGhOpen,
+  "gh-push": handleGhPush,
+  "gh-pull": handleGhPull,
 };
 ```
 
@@ -423,9 +466,9 @@ Each command follows this pattern:
 
 ```javascript
 program
-  .command('command-name [args...]')
-  .description('What this command does')
-  .option('--flag', 'Optional flag')
+  .command("command-name [args...]")
+  .description("What this command does")
+  .option("--flag", "Optional flag")
   .action(async (args, options) => {
     try {
       // Validate input
@@ -442,16 +485,19 @@ program
 ## API Integration Points
 
 ### NVIDIA Nemotron
+
 - Endpoint: `https://integrate.api.nvidia.com/v1/chat/completions`
 - Auth: Bearer token
 - Used by: `warnetech ai`, `warnetech fix`, `warnetech explain`
 
 ### GitHub API
+
 - Endpoint: `https://api.github.com`
 - Auth: Personal access token
 - Used by: `warnetech gh-open`, `warnetech gh-push`, `warnetech gh-pull`
 
 ### Warnetech Control Plane
+
 - Used by: `warnetech status`, `warnetech sync`
 - Endpoints: TBD
 
@@ -462,6 +508,7 @@ program
 ### Common Errors
 
 **Connection Error**:
+
 ```
 ✗ Error: Failed to connect to Worker
   Check: warnetech ping
@@ -469,6 +516,7 @@ program
 ```
 
 **API Key Error**:
+
 ```
 ✗ Error: API_KEY not found in config
   Run: warnetech init
@@ -476,6 +524,7 @@ program
 ```
 
 **NVIDIA API Error**:
+
 ```
 ✗ Error: Nemotron API rate limited
   Wait: Try again in a few minutes
@@ -483,6 +532,7 @@ program
 ```
 
 **Git Error**:
+
 ```
 ✗ Error: No changes to commit
   Check: git status
@@ -494,6 +544,7 @@ program
 ## Progressive Implementation
 
 Follow this order:
+
 1. ✅ **warnetech ping** → Basic connectivity
 2. ✅ **warnetech gh-open** → URL generation
 3. ✅ **warnetech ai** → AI integration
@@ -510,6 +561,7 @@ Follow this order:
 ## Success Criteria
 
 ### Phase 1 Complete When:
+
 - ✅ All 5 core commands implemented
 - ✅ All commands tested end-to-end
 - ✅ All tests passing
@@ -522,18 +574,18 @@ Follow this order:
 
 ## Commands Reference
 
-| Command | Purpose | Status | Priority |
-|---------|---------|--------|----------|
-| `warnetech ping` | Check connectivity | Phase 1 | 🔴 |
-| `warnetech gh-open` | Get Claude URL | Phase 1 | 🔴 |
-| `warnetech ai` | AI assistance | Phase 1 | 🟠 |
-| `warnetech gh-push` | Push to GitHub | Phase 1 | 🟠 |
-| `warnetech gh-pull` | Pull from GitHub | Phase 1 | 🟠 |
-| `warnetech fix` | Fix code | Phase 2 | 🟡 |
-| `warnetech explain` | Explain code | Phase 2 | 🟡 |
-| `warnetech status` | System status | Phase 3 | 🟡 |
-| `warnetech sync` | Sync remote | Phase 3 | 🟡 |
-| `warnetech update` | Update CLI | Phase 3 | 🟡 |
+| Command             | Purpose            | Status  | Priority |
+| ------------------- | ------------------ | ------- | -------- |
+| `warnetech ping`    | Check connectivity | Phase 1 | 🔴       |
+| `warnetech gh-open` | Get Claude URL     | Phase 1 | 🔴       |
+| `warnetech ai`      | AI assistance      | Phase 1 | 🟠       |
+| `warnetech gh-push` | Push to GitHub     | Phase 1 | 🟠       |
+| `warnetech gh-pull` | Pull from GitHub   | Phase 1 | 🟠       |
+| `warnetech fix`     | Fix code           | Phase 2 | 🟡       |
+| `warnetech explain` | Explain code       | Phase 2 | 🟡       |
+| `warnetech status`  | System status      | Phase 3 | 🟡       |
+| `warnetech sync`    | Sync remote        | Phase 3 | 🟡       |
+| `warnetech update`  | Update CLI         | Phase 3 | 🟡       |
 
 ---
 

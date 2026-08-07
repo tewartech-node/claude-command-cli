@@ -3,50 +3,50 @@
 // Data classification tiers
 const DATA_TIERS = {
   TIER_1: {
-    name: 'Highly Sensitive',
+    name: "Highly Sensitive",
     encrypted_at_rest: true,
     encrypted_in_transit: true,
     access_logging: true,
-    examples: 'API keys, passwords, tokens',
+    examples: "API keys, passwords, tokens",
   },
   TIER_2: {
-    name: 'Sensitive',
+    name: "Sensitive",
     encrypted_at_rest: false,
     encrypted_in_transit: true,
     audit_logging: true,
-    examples: 'User code, prompts, analysis results',
+    examples: "User code, prompts, analysis results",
   },
   TIER_3: {
-    name: 'Public',
+    name: "Public",
     encrypted_at_rest: false,
     encrypted_in_transit: false,
     public_logging: true,
-    examples: 'Help text, status info, version numbers',
+    examples: "Help text, status info, version numbers",
   },
 };
 
 // Anti-tamper checks
 function validateRequestStructure(request) {
   // Check if it's a plain object (not array, null, or other types)
-  if (!request || typeof request !== 'object' || Array.isArray(request)) {
-    throw new Error('Invalid request structure');
+  if (!request || typeof request !== "object" || Array.isArray(request)) {
+    throw new Error("Invalid request structure");
   }
 
   // Check for required fields
   if (!request.command && !request.encrypted_data) {
-    throw new Error('Missing command or encrypted_data');
+    throw new Error("Missing command or encrypted_data");
   }
 
   // If encrypted, check signature
   if (request.encrypted_data && !request.signature) {
-    throw new Error('Encrypted request missing signature');
+    throw new Error("Encrypted request missing signature");
   }
 
   return true;
 }
 
 function validateHeaderIntegrity(headers) {
-  const required = ['x-request-id', 'x-timestamp'];
+  const required = ["x-request-id", "x-timestamp"];
 
   for (const header of required) {
     if (!headers.get(header)) {
@@ -60,27 +60,30 @@ function validateHeaderIntegrity(headers) {
 function validateTimestamp(timestamp) {
   try {
     // Validate timestamp format (ISO 8601)
-    if (typeof timestamp !== 'string' || !timestamp.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/)) {
-      throw new Error('Invalid timestamp format (expected ISO 8601)');
+    if (
+      typeof timestamp !== "string" ||
+      !timestamp.match(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/)
+    ) {
+      throw new Error("Invalid timestamp format (expected ISO 8601)");
     }
 
     const requestTime = new Date(timestamp).getTime();
 
     // Check if date is valid
     if (isNaN(requestTime)) {
-      throw new Error('Invalid timestamp format');
+      throw new Error("Invalid timestamp format");
     }
 
     const now = Date.now();
 
     // Must be within 5 minutes
     if (Math.abs(now - requestTime) > 300000) {
-      throw new Error('Request timestamp outside acceptable window');
+      throw new Error("Request timestamp outside acceptable window");
     }
 
     // Must not be in the future (by more than 1 second for clock skew)
     if (requestTime > now + 1000) {
-      throw new Error('Request timestamp is in the future');
+      throw new Error("Request timestamp is in the future");
     }
 
     return true;
@@ -105,14 +108,14 @@ async function checkRateLimit(apiKeyHash, env) {
 function getDataTier(command) {
   // Map commands to data tiers
   const tierMap = {
-    ping: 'TIER_3', // System status - public
-    'gh-open': 'TIER_3', // Public URL generation
-    ai: 'TIER_2', // User prompts - sensitive
-    gh: 'TIER_2', // Code operations - sensitive
-    sys: 'TIER_3', // System info - public
+    ping: "TIER_3", // System status - public
+    "gh-open": "TIER_3", // Public URL generation
+    ai: "TIER_2", // User prompts - sensitive
+    gh: "TIER_2", // Code operations - sensitive
+    sys: "TIER_3", // System info - public
   };
 
-  return tierMap[command] || 'TIER_2'; // Default to sensitive
+  return tierMap[command] || "TIER_2"; // Default to sensitive
 }
 
 function validateDataTier(tier) {
@@ -145,15 +148,15 @@ async function performSecurityCheck(request, headers, env) {
   validateHeaderIntegrity(headers);
 
   // Validate timestamp
-  const timestamp = headers.get('x-timestamp');
+  const timestamp = headers.get("x-timestamp");
   validateTimestamp(timestamp);
 
   // Check rate limits
-  const apiKeyHash = headers.get('x-api-key-hash');
+  const apiKeyHash = headers.get("x-api-key-hash");
   await checkRateLimit(apiKeyHash, env);
 
   // Check for replay attacks
-  const requestId = headers.get('x-request-id');
+  const requestId = headers.get("x-request-id");
   await checkRequestDeduplication(requestId, env);
 
   return {

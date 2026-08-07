@@ -1,7 +1,7 @@
 // NVIDIA Nemotron API client
 
-const NVIDIA_API_URL = 'https://integrate.api.nvidia.com/v1/chat/completions';
-const MODEL = 'nvidia/nemotron-3-ultra';
+const NVIDIA_API_URL = "https://integrate.api.nvidia.com/v1/chat/completions";
+const MODEL = "nvidia/nemotron-3-ultra";
 
 async function chat(prompt, apiKey, options = {}) {
   const { stream = false } = options;
@@ -10,11 +10,12 @@ async function chat(prompt, apiKey, options = {}) {
     model: MODEL,
     messages: [
       {
-        role: 'system',
-        content: 'You are Claude, an AI assistant for the Warnetech command-line system. Provide concise, actionable responses.',
+        role: "system",
+        content:
+          "You are Claude, an AI assistant for the Warnetech command-line system. Provide concise, actionable responses.",
       },
       {
-        role: 'user',
+        role: "user",
         content: prompt,
       },
     ],
@@ -25,16 +26,18 @@ async function chat(prompt, apiKey, options = {}) {
 
   try {
     const response = await fetch(NVIDIA_API_URL, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
       },
       body: JSON.stringify(request),
     });
 
     if (!response.ok) {
-      throw new Error(`NVIDIA API error: ${response.status} ${response.statusText}`);
+      throw new Error(
+        `NVIDIA API error: ${response.status} ${response.statusText}`,
+      );
     }
 
     if (stream) {
@@ -55,7 +58,7 @@ async function handleBufferedResponse(response) {
   }
 
   const choice = data.choices[0];
-  const text = choice.text || choice.message?.content || '';
+  const text = choice.text || choice.message?.content || "";
 
   return {
     text,
@@ -71,17 +74,17 @@ async function handleStreamingResponse(response) {
   // TODO: Implement streaming response handling
   // For now, buffer the entire response
   const reader = response.body.getReader();
-  let text = '';
+  let text = "";
 
   while (true) {
     const { done, value } = await reader.read();
     if (done) break;
 
     const chunk = new TextDecoder().decode(value);
-    const lines = chunk.split('\n');
+    const lines = chunk.split("\n");
 
     for (const line of lines) {
-      if (line.startsWith('data: ')) {
+      if (line.startsWith("data: ")) {
         const data = JSON.parse(line.slice(6));
         if (data.choices && data.choices[0].delta?.content) {
           text += data.choices[0].delta.content;
@@ -106,12 +109,12 @@ async function optimizePrompt(userPrompt, context = {}) {
 
   // Add format constraint if applicable
   if (context.wantCode) {
-    optimized += '\n\nProvide code only, no explanation.';
+    optimized += "\n\nProvide code only, no explanation.";
   }
 
   // Ensure completeness
-  if (!optimized.includes('?') && !optimized.endsWith('.')) {
-    optimized += '.';
+  if (!optimized.includes("?") && !optimized.endsWith(".")) {
+    optimized += ".";
   }
 
   return optimized;

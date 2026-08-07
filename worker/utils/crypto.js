@@ -1,41 +1,40 @@
 // Cryptographic utilities for request/response encryption
 // Implements AES-256-GCM encryption with ChaCha20-Poly1305 fallback
 
-import { webcrypto } from 'node:crypto';
+import { createHmac, timingSafeEqual, webcrypto } from "node:crypto";
 
-const ALGORITHM = 'AES-GCM';
+const ALGORITHM = "AES-GCM";
 const KEY_LENGTH = 256; // bits
 const IV_LENGTH = 12; // 96 bits for GCM
-const AUTH_TAG_LENGTH = 128; // bits
 
 async function deriveKey(apiKey) {
   // Derive a stable encryption key from the API key using PBKDF2
   const encoder = new TextEncoder();
   const keyMaterial = await webcrypto.subtle.importKey(
-    'raw',
+    "raw",
     encoder.encode(apiKey),
-    { name: 'PBKDF2' },
+    { name: "PBKDF2" },
     false,
-    ['deriveBits']
+    ["deriveBits"],
   );
 
   const derivedBits = await webcrypto.subtle.deriveBits(
     {
-      name: 'PBKDF2',
-      salt: encoder.encode('claude-command-cli'),
+      name: "PBKDF2",
+      salt: encoder.encode("claude-command-cli"),
       iterations: 100000,
-      hash: 'SHA-256',
+      hash: "SHA-256",
     },
     keyMaterial,
-    KEY_LENGTH
+    KEY_LENGTH,
   );
 
   return webcrypto.subtle.importKey(
-    'raw',
+    "raw",
     derivedBits,
     { name: ALGORITHM },
     false,
-    ['encrypt', 'decrypt']
+    ["encrypt", "decrypt"],
   );
 }
 
@@ -56,7 +55,7 @@ async function encryptData(plaintext, apiKey) {
         iv,
       },
       key,
-      data
+      data,
     );
 
     // Return IV + ciphertext in base64
@@ -64,7 +63,7 @@ async function encryptData(plaintext, apiKey) {
     combined.set(iv, 0);
     combined.set(new Uint8Array(encrypted), iv.length);
 
-    return Buffer.from(combined).toString('base64');
+    return Buffer.from(combined).toString("base64");
   } catch (error) {
     throw new Error(`Encryption failed: ${error.message}`);
   }
@@ -75,7 +74,7 @@ async function decryptData(ciphertext, apiKey) {
     const key = await deriveKey(apiKey);
 
     // Decode base64
-    const combined = Buffer.from(ciphertext, 'base64');
+    const combined = Buffer.from(ciphertext, "base64");
 
     // Extract IV and ciphertext
     const iv = combined.slice(0, IV_LENGTH);
@@ -88,7 +87,7 @@ async function decryptData(ciphertext, apiKey) {
         iv,
       },
       key,
-      encrypted
+      encrypted,
     );
 
     const decoder = new TextDecoder();
@@ -100,20 +99,15 @@ async function decryptData(ciphertext, apiKey) {
 
 function generateHmacSignature(payload, secret) {
   // HMAC-SHA256 signature for request integrity verification
-  const crypto = require('crypto');
-  const hmac = crypto.createHmac('sha256', secret);
+  const hmac = createHmac("sha256", secret);
   hmac.update(JSON.stringify(payload));
-  return hmac.digest('hex');
+  return hmac.digest("hex");
 }
 
 function verifyHmacSignature(payload, signature, secret) {
   // Timing-safe comparison to prevent timing attacks
-  const crypto = require('crypto');
   const expected = generateHmacSignature(payload, secret);
-  return crypto.timingSafeEqual(
-    Buffer.from(signature),
-    Buffer.from(expected)
-  );
+  return timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
 }
 
 function generateRequestId() {

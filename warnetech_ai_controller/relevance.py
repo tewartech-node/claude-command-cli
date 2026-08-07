@@ -4,7 +4,6 @@ slices are needed for recall.
 
 from __future__ import annotations
 
-from typing import Any
 
 from .config import AIControllerConfig, DEFAULT_CONFIG
 from .utils import cosine_similarity

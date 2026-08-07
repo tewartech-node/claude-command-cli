@@ -11,41 +11,43 @@
 // Termux CLI - Main entrypoint
 // Usage: warnetech <command> [args...]
 
-import { Command } from 'commander';
-import { readFileSync } from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import os from 'os';
-import { exec } from 'child_process';
-import { promisify } from 'util';
-import fs from 'fs/promises';
+import { Command } from "commander";
+import { readFileSync } from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+import os from "os";
+import { exec } from "child_process";
+import { promisify } from "util";
+import fs from "fs/promises";
 import {
   encryptData,
   decryptData,
   generateHmacSignature,
   generateRequestId,
   hashApiKey,
-} from './crypto.js';
+} from "./crypto.js";
 
 const execAsync = promisify(exec);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const pkg = JSON.parse(readFileSync(path.join(__dirname, '../package.json'), 'utf-8'));
+const pkg = JSON.parse(
+  readFileSync(path.join(__dirname, "../package.json"), "utf-8"),
+);
 
 const program = new Command();
 
 program
-  .name('warnetech')
-  .description('Claude Command CLI for Termux')
+  .name("warnetech")
+  .description("Claude Command CLI for Termux")
   .version(pkg.version);
 
 // Load config
 async function loadConfig() {
-  const configPath = path.join(os.homedir(), '.claude-cli', 'config.json');
+  const configPath = path.join(os.homedir(), ".claude-cli", "config.json");
   try {
-    const data = await fs.readFile(configPath, 'utf-8');
+    const data = await fs.readFile(configPath, "utf-8");
     return JSON.parse(data);
   } catch (error) {
-    return { worker_url: 'http://localhost:8787', api_key: 'dev-key' };
+    return { worker_url: "http://localhost:8787", api_key: "dev-key" };
   }
 }
 
@@ -53,8 +55,8 @@ async function loadConfig() {
 async function sendToWorker(command, args = [], config = null) {
   if (!config) config = await loadConfig();
 
-  const workerUrl = config.worker_url || 'http://localhost:8787';
-  const apiKey = config.api_key || 'dev-key';
+  const workerUrl = config.worker_url || "http://localhost:8787";
+  const apiKey = config.api_key || "dev-key";
   const requestId = generateRequestId();
   const timestamp = new Date().toISOString();
 
@@ -68,7 +70,10 @@ async function sendToWorker(command, args = [], config = null) {
     const encryptedPayload = await encryptData(JSON.stringify(payload), apiKey);
 
     // Generate signature
-    const signature = generateHmacSignature({ encrypted_data: encryptedPayload }, apiKey);
+    const signature = generateHmacSignature(
+      { encrypted_data: encryptedPayload },
+      apiKey,
+    );
 
     const request = {
       encrypted_data: encryptedPayload,
@@ -76,12 +81,12 @@ async function sendToWorker(command, args = [], config = null) {
     };
 
     const response = await fetch(`${workerUrl}/cli`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
-        'X-API-Key-Hash': hashApiKey(apiKey),
-        'X-Request-ID': requestId,
-        'X-Timestamp': timestamp,
+        "Content-Type": "application/json",
+        "X-API-Key-Hash": hashApiKey(apiKey),
+        "X-Request-ID": requestId,
+        "X-Timestamp": timestamp,
       },
       body: JSON.stringify(request),
     });
@@ -91,7 +96,10 @@ async function sendToWorker(command, args = [], config = null) {
     // Decrypt response if encrypted
     if (responseData.encrypted_data && responseData.signature) {
       try {
-        const decrypted = await decryptData(responseData.encrypted_data, apiKey);
+        const decrypted = await decryptData(
+          responseData.encrypted_data,
+          apiKey,
+        );
         return {
           ok: response.ok,
           status: response.status,
@@ -113,26 +121,28 @@ async function sendToWorker(command, args = [], config = null) {
 
 // Ping command - Test connectivity with Worker
 program
-  .command('ping')
-  .description('Check connectivity with Worker')
+  .command("ping")
+  .description("Check connectivity with Worker")
   .action(async () => {
     try {
       const config = await loadConfig();
-      console.log('> Checking Worker connectivity...');
-      const { ok, data, error } = await sendToWorker('ping', [], config);
+      console.log("> Checking Worker connectivity...");
+      const { ok, data, error } = await sendToWorker("ping", [], config);
 
       if (!ok) {
-        console.log('✗ Error: Failed to connect to Worker');
+        console.log("✗ Error: Failed to connect to Worker");
         console.log(`  Reason: ${error || data?.error}`);
         process.exit(1);
       }
 
-      console.log('✓ Ping: Connected');
+      console.log("✓ Ping: Connected");
       console.log(`  Worker: ${config.worker_url}`);
       console.log(`  Message: ${data.data.message}`);
-      console.log(`  Latency: ${Date.now() - new Date(data.timestamp).getTime()}ms`);
+      console.log(
+        `  Latency: ${Date.now() - new Date(data.timestamp).getTime()}ms`,
+      );
     } catch (error) {
-      console.log('✗ Error: Unexpected error');
+      console.log("✗ Error: Unexpected error");
       console.log(`  ${error.message}`);
       process.exit(1);
     }
@@ -140,43 +150,45 @@ program
 
 // AI command
 program
-  .command('ai <prompt>')
-  .description('Ask Claude (NVIDIA Nemotron) anything')
-  .option('--stream', 'Stream reasoning tokens')
-  .option('--timeout <seconds>', 'Request timeout in seconds', '30')
-  .option('--model <model>', 'AI model to use', 'nemotron-3-ultra')
+  .command("ai <prompt>")
+  .description("Ask Claude (NVIDIA Nemotron) anything")
+  .option("--stream", "Stream reasoning tokens")
+  .option("--timeout <seconds>", "Request timeout in seconds", "30")
+  .option("--model <model>", "AI model to use", "nemotron-3-ultra")
   .action(async (prompt, options) => {
     try {
       const config = await loadConfig();
 
       // Check for NVIDIA API key
       if (!config.nemotron_api_key) {
-        console.log('✗ Error: NVIDIA_API_KEY not found in config');
-        console.log('  Run: warnetech init');
+        console.log("✗ Error: NVIDIA_API_KEY not found in config");
+        console.log("  Run: warnetech init");
         console.log('  For help: warnetech help --error "API_KEY not found"');
         process.exit(1);
       }
 
-      console.log('> Sending prompt to Claude...');
+      console.log("> Sending prompt to Claude...");
       const args = [prompt];
-      if (options.stream) args.push('--stream');
+      if (options.stream) args.push("--stream");
 
-      const { ok, data, error } = await sendToWorker('ai', args, config);
+      const { ok, data, error } = await sendToWorker("ai", args, config);
 
       if (!ok) {
-        console.log('✗ Error: Failed to get response from Claude');
+        console.log("✗ Error: Failed to get response from Claude");
         console.log(`  ${error || data?.error}`);
         process.exit(1);
       }
 
       const { response, tokens, model } = data.data;
-      console.log('');
+      console.log("");
       console.log(response);
-      console.log('');
+      console.log("");
       console.log(`✓ Model: ${model}`);
-      console.log(`  Tokens: ${tokens.input} input + ${tokens.output} output = ${tokens.total} total`);
+      console.log(
+        `  Tokens: ${tokens.input} input + ${tokens.output} output = ${tokens.total} total`,
+      );
     } catch (error) {
-      console.log('✗ Error: Unexpected error');
+      console.log("✗ Error: Unexpected error");
       console.log(`  ${error.message}`);
       process.exit(1);
     }
@@ -184,8 +196,8 @@ program
 
 // Fix command
 program
-  .command('fix <file>')
-  .description('Fix code issues in a file')
+  .command("fix <file>")
+  .description("Fix code issues in a file")
   .action(async (file) => {
     console.log(`✓ Analyzing ${file}...`);
     // TODO: Implement fix command
@@ -193,8 +205,8 @@ program
 
 // Explain command
 program
-  .command('explain <file>')
-  .description('Explain code in a file')
+  .command("explain <file>")
+  .description("Explain code in a file")
   .action(async (file) => {
     console.log(`✓ Explaining ${file}...`);
     // TODO: Implement explain command
@@ -202,17 +214,21 @@ program
 
 // GitHub commands
 program
-  .command('gh-open <repo>')
-  .description('Open GitHub repository in Claude')
+  .command("gh-open <repo>")
+  .description("Open GitHub repository in Claude")
   .action(async (repo) => {
     try {
       const config = await loadConfig();
       console.log(`> Opening ${repo}...`);
 
-      const { ok, data, error, status } = await sendToWorker('gh', ['open', repo], config);
+      const { ok, data, error, status } = await sendToWorker(
+        "gh",
+        ["open", repo],
+        config,
+      );
 
       if (!ok) {
-        console.log('✗ Error: Failed to generate Claude URL');
+        console.log("✗ Error: Failed to generate Claude URL");
         console.log(`  Reason: ${error || data?.error}`);
         process.exit(1);
       }
@@ -221,143 +237,150 @@ program
       console.log(`✓ Repository: ${repo}`);
       console.log(`✓ URL: ${url}`);
       console.log(`✓ Claude: ${claude_url}`);
-      console.log('');
-      console.log('Copy link to open in Claude:');
+      console.log("");
+      console.log("Copy link to open in Claude:");
       console.log(claude_url);
     } catch (error) {
-      console.log('✗ Error: Unexpected error');
+      console.log("✗ Error: Unexpected error");
       console.log(`  ${error.message}`);
       process.exit(1);
     }
   });
 
 program
-  .command('gh-push <message>')
-  .description('Commit and push changes to GitHub')
-  .option('--no-verify', 'Skip pre-commit hooks')
+  .command("gh-push <message>")
+  .description("Commit and push changes to GitHub")
+  .option("--no-verify", "Skip pre-commit hooks")
   .action(async (message, options) => {
     try {
-      console.log('> Checking changes...');
-      const { stdout: status } = await execAsync('git status --porcelain');
+      console.log("> Checking changes...");
+      const { stdout: status } = await execAsync("git status --porcelain");
 
       if (!status.trim()) {
-        console.log('✗ Error: No changes to commit');
-        console.log('  Check: git status');
-        console.log('  Add: git add .');
+        console.log("✗ Error: No changes to commit");
+        console.log("  Check: git status");
+        console.log("  Add: git add .");
         process.exit(1);
       }
 
-      console.log('✓ Changes found');
-      console.log('> Staging files...');
-      await execAsync('git add .');
+      console.log("✓ Changes found");
+      console.log("> Staging files...");
+      await execAsync("git add .");
 
-      console.log('> Committing...');
-      const commitCmd = `git commit -m "${message.replace(/"/g, '\\"')}"${options.verify ? '' : ' --no-verify'}`;
+      console.log("> Committing...");
+      const commitCmd = `git commit -m "${message.replace(/"/g, '\\"')}"${options.verify ? "" : " --no-verify"}`;
       await execAsync(commitCmd);
 
-      console.log('> Pushing...');
-      await execAsync('git push -u origin HEAD');
+      console.log("> Pushing...");
+      await execAsync("git push -u origin HEAD");
 
-      console.log('✓ Success: Pushed to origin');
-      const { stdout: branch } = await execAsync('git rev-parse --abbrev-ref HEAD');
+      console.log("✓ Success: Pushed to origin");
+      const { stdout: branch } = await execAsync(
+        "git rev-parse --abbrev-ref HEAD",
+      );
       console.log(`  Branch: ${branch.trim()}`);
     } catch (error) {
-      if (error.message.includes('nothing to commit')) {
-        console.log('✗ Error: No changes to commit');
-      } else if (error.message.includes('conflict')) {
-        console.log('✗ Error: Merge conflict detected');
-        console.log('  Resolve conflicts and try again');
-      } else if (error.message.includes('rejected')) {
-        console.log('✗ Error: Push rejected (non-fast-forward)');
-        console.log('  Run: git pull --rebase');
+      if (error.message.includes("nothing to commit")) {
+        console.log("✗ Error: No changes to commit");
+      } else if (error.message.includes("conflict")) {
+        console.log("✗ Error: Merge conflict detected");
+        console.log("  Resolve conflicts and try again");
+      } else if (error.message.includes("rejected")) {
+        console.log("✗ Error: Push rejected (non-fast-forward)");
+        console.log("  Run: git pull --rebase");
       } else {
-        console.log('✗ Error: Git operation failed');
+        console.log("✗ Error: Git operation failed");
       }
-      console.log(`  ${error.message.split('\n')[0]}`);
+      console.log(`  ${error.message.split("\n")[0]}`);
       process.exit(1);
     }
   });
 
 program
-  .command('gh-pull')
-  .description('Pull latest changes from GitHub')
-  .option('--rebase', 'Use rebase instead of merge')
+  .command("gh-pull")
+  .description("Pull latest changes from GitHub")
+  .option("--rebase", "Use rebase instead of merge")
   .action(async (options) => {
     try {
-      console.log('> Fetching latest...');
-      await execAsync('git fetch origin');
+      console.log("> Fetching latest...");
+      await execAsync("git fetch origin");
 
-      console.log('> Pulling...');
-      const pullCmd = options.rebase ? 'git pull --rebase' : 'git pull';
+      console.log("> Pulling...");
+      const pullCmd = options.rebase ? "git pull --rebase" : "git pull";
       const { stdout } = await execAsync(pullCmd);
 
-      console.log('✓ Success: Updated from origin');
-      const lines = stdout.split('\n');
+      console.log("✓ Success: Updated from origin");
+      const lines = stdout.split("\n");
       for (const line of lines) {
-        if (line.includes('file') || line.includes('changed') || line.includes('insertion') || line.includes('deletion')) {
+        if (
+          line.includes("file") ||
+          line.includes("changed") ||
+          line.includes("insertion") ||
+          line.includes("deletion")
+        ) {
           console.log(`  ${line}`);
         }
       }
     } catch (error) {
-      if (error.message.includes('conflict')) {
-        console.log('✗ Error: Merge conflict detected');
-        console.log('  Resolve conflicts and run: git add . && git commit');
-      } else if (error.message.includes('CONFLICT')) {
-        console.log('✗ Error: Merge conflict - resolve manually');
+      if (error.message.includes("conflict")) {
+        console.log("✗ Error: Merge conflict detected");
+        console.log("  Resolve conflicts and run: git add . && git commit");
+      } else if (error.message.includes("CONFLICT")) {
+        console.log("✗ Error: Merge conflict - resolve manually");
       } else {
-        console.log('✗ Error: Git pull failed');
+        console.log("✗ Error: Git pull failed");
       }
-      console.log(`  ${error.message.split('\n')[0]}`);
+      console.log(`  ${error.message.split("\n")[0]}`);
       process.exit(1);
     }
   });
 
 // System commands
 program
-  .command('status')
-  .description('Show system status')
+  .command("status")
+  .description("Show system status")
   .action(async () => {
-    console.log('CLI Version: 0.1.0');
-    console.log('Status: ✓ Ready');
+    console.log("CLI Version: 0.1.0");
+    console.log("Status: ✓ Ready");
     // TODO: Implement status command
   });
 
 program
-  .command('sync')
-  .description('Sync with remote (quotas, baselines)')
+  .command("sync")
+  .description("Sync with remote (quotas, baselines)")
   .action(async () => {
-    console.log('✓ Syncing...');
+    console.log("✓ Syncing...");
     // TODO: Implement sync command
   });
 
 program
-  .command('update')
-  .description('Update CLI to latest version')
-  .option('--check', 'Only check for updates')
+  .command("update")
+  .description("Update CLI to latest version")
+  .option("--check", "Only check for updates")
   .action(async (options) => {
     if (options.check) {
-      console.log('✓ Checking for updates...');
+      console.log("✓ Checking for updates...");
     } else {
-      console.log('✓ Updating CLI...');
+      console.log("✓ Updating CLI...");
     }
     // TODO: Implement update command
   });
 
 program
-  .command('evolve')
-  .description('Self-update with AI synthesis & verification')
-  .option('--dry-run', 'Simulate update without deploying')
-  .option('--check', 'Only check for updates')
+  .command("evolve")
+  .description("Self-update with AI synthesis & verification")
+  .option("--dry-run", "Simulate update without deploying")
+  .option("--check", "Only check for updates")
   .action(async (options) => {
-    console.log('🔄 Starting evolution...');
+    console.log("🔄 Starting evolution...");
     // TODO: Implement evolve command
   });
 
 // Help command
 program
-  .command('help [command]')
-  .description('Get help for commands')
-  .option('--error <message>', 'Get help with an error')
+  .command("help [command]")
+  .description("Get help for commands")
+  .option("--error <message>", "Get help with an error")
   .action(async (cmd, options) => {
     if (options.error) {
       console.log(`✓ Getting help for error: ${options.error}`);
@@ -372,11 +395,11 @@ program
 
 // Initialization command
 program
-  .command('init')
-  .description('Initialize configuration')
+  .command("init")
+  .description("Initialize configuration")
   .action(async () => {
-    console.log('✓ Initializing configuration...');
-    const configPath = path.join(os.homedir(), '.claude-cli', 'config.json');
+    console.log("✓ Initializing configuration...");
+    const configPath = path.join(os.homedir(), ".claude-cli", "config.json");
     // TODO: Implement init command - create config file
     console.log(`Created: ${configPath}`);
   });

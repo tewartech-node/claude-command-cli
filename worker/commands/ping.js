@@ -3,7 +3,7 @@
 
 async function handlePing(args, env) {
   return {
-    message: 'pong',
+    message: "pong",
     timestamp: new Date().toISOString(),
   };
 }

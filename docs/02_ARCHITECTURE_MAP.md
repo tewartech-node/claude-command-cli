@@ -60,6 +60,7 @@
 ## Data Flow
 
 ### Request Flow
+
 1. User types CLI command in Termux
 2. CLI parses command & arguments
 3. CLI loads config from ~/.claude-cli/config.json
@@ -70,6 +71,7 @@
 8. Worker dispatches to appropriate handler
 
 ### Response Flow
+
 1. Handler processes command
 2. Handler prepares JSON response
 3. Handler encrypts response
@@ -80,6 +82,7 @@
 ## Component Responsibilities
 
 ### warnetech_cli_legacy/warnetech
+
 - Command parsing & routing
 - Request encryption
 - Config management
@@ -87,17 +90,20 @@
 - Error handling
 
 ### worker/index.js
+
 - HTTP server
 - Security layer (validation, decryption)
 - Command dispatching
 - Response preparation
 
 ### worker/commands/
+
 - **ai.js**: NVIDIA Nemotron integration, streaming, reasoning tokens
 - **gh.js**: GitHub API operations (open, push, pull, PR review)
 - **sys.js**: System operations (status, quotas, logs)
 
 ### worker/utils/
+
 - **validate.js**: Crypto validation, anti-tamper checks, data tier enforcement
 - **respond.js**: JSON response formatting, error handling
 - **nemotron.js**: NVIDIA API client, prompt optimization
@@ -105,22 +111,26 @@
 ## Security Architecture
 
 ### Encryption
+
 - Primary: AES-256-GCM (AEAD)
 - Fallback: ChaCha20-Poly1305
 - Key Derivation: Argon2id
 - Post-Quantum: ML-KEM (Kyber) handshake patterns
 
 ### Authentication
+
 - API_KEY validation on every request
 - Signature verification for integrity
 - Rate limiting via Cloudflare KV
 
 ### Data Protection
+
 - Tier 1: Highly Sensitive (encrypted at rest + in transit)
 - Tier 2: Sensitive (encrypted in transit)
 - Tier 3: Public (no encryption required)
 
 ### Audit Logging
+
 - WORM (Write-Once-Read-Many) storage in R2
 - Row-Level Security (RLS) in Supabase
 - Sensitive data never logged in plaintext
@@ -128,6 +138,7 @@
 ## Evolution & Self-Update
 
 The system supports self-updating via ASAEAI patterns:
+
 - **Sandbox Synthesis**: Test code changes in isolated environment
 - **Automated Verification**: Validate changes before deployment
 - **Atomic Deployment**: Deploy or rollback as single unit

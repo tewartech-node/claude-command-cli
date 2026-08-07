@@ -14,7 +14,6 @@ import gzip
 import hashlib
 import hmac
 import json
-import os
 import time
 from pathlib import Path
 from typing import Any, Iterable, Iterator

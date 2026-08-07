@@ -2,21 +2,23 @@
 
 async function handleSys(args, env) {
   if (!args || args.length === 0) {
-    throw new Error('System action required: status|quota|sync|detect-anomalies|rollup');
+    throw new Error(
+      "System action required: status|quota|sync|detect-anomalies|rollup",
+    );
   }
 
   const action = args[0];
 
   switch (action) {
-    case 'status':
+    case "status":
       return handleStatus(env);
-    case 'quota':
+    case "quota":
       return handleQuota(args[1], env);
-    case 'sync':
+    case "sync":
       return handleSync(env);
-    case 'detect-anomalies':
+    case "detect-anomalies":
       return handleAnomalies(env);
-    case 'rollup':
+    case "rollup":
       return handleRollup(env);
     default:
       throw new Error(`Unknown action: ${action}`);
@@ -25,24 +27,24 @@ async function handleSys(args, env) {
 
 async function handleStatus(env) {
   return {
-    status: 'healthy',
-    version: '0.1.0',
+    status: "healthy",
+    version: "0.1.0",
     uptime: Math.floor(Date.now() / 1000),
     timestamp: new Date().toISOString(),
     services: {
-      nvidia_api: 'ok',
-      github_api: 'ok',
-      d1: 'ok',
-      r2: 'ok',
-      supabase: 'ok',
-      kv: 'ok',
+      nvidia_api: "ok",
+      github_api: "ok",
+      d1: "ok",
+      r2: "ok",
+      supabase: "ok",
+      kv: "ok",
     },
   };
 }
 
 async function handleQuota(action, env) {
   // TODO: Implement quota checking
-  if (action === 'check') {
+  if (action === "check") {
     return {
       api_calls: { used: 45, limit: 100 },
       storage: { used: 2.3, limit: 10 },
@@ -50,7 +52,7 @@ async function handleQuota(action, env) {
     };
   }
 
-  if (action === 'rollup') {
+  if (action === "rollup") {
     return {
       rollup_triggered: true,
       timestamp: new Date().toISOString(),

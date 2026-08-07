@@ -3,15 +3,15 @@
 async function validateRequest(body, headers, env) {
   try {
     // Validate API key hash (not the actual key)
-    const apiKeyHash = headers.get('x-api-key-hash');
+    const apiKeyHash = headers.get("x-api-key-hash");
     if (!apiKeyHash) {
-      return { ok: false, error: 'API key validation required' };
+      return { ok: false, error: "API key validation required" };
     }
 
     // Validate request ID (prevent replay)
-    const requestId = headers.get('x-request-id');
+    const requestId = headers.get("x-request-id");
     if (!requestId) {
-      return { ok: false, error: 'Request ID required' };
+      return { ok: false, error: "Request ID required" };
     }
 
     // TODO: Check if request ID already seen
@@ -21,24 +21,25 @@ async function validateRequest(body, headers, env) {
     // }
 
     // Validate timestamp
-    const timestamp = headers.get('x-timestamp');
+    const timestamp = headers.get("x-timestamp");
     if (!timestamp) {
-      return { ok: false, error: 'Timestamp required' };
+      return { ok: false, error: "Timestamp required" };
     }
 
     const requestTime = new Date(timestamp).getTime();
     const now = Date.now();
-    if (Math.abs(now - requestTime) > 300000) { // 5 minutes
-      return { ok: false, error: 'Request timestamp too old' };
+    if (Math.abs(now - requestTime) > 300000) {
+      // 5 minutes
+      return { ok: false, error: "Request timestamp too old" };
     }
 
     // For unencrypted requests (backwards compatibility)
     if (body.command) {
-      const validCommands = ['ping', 'ai', 'gh', 'sys'];
+      const validCommands = ["ping", "ai", "gh", "sys"];
       if (!validCommands.includes(body.command)) {
         return {
           ok: false,
-          error: `Unknown command: ${body.command}. Valid commands: ${validCommands.join(', ')}`,
+          error: `Unknown command: ${body.command}. Valid commands: ${validCommands.join(", ")}`,
         };
       }
 
@@ -59,7 +60,7 @@ async function validateRequest(body, headers, env) {
       };
     }
 
-    return { ok: false, error: 'Command or encrypted_data required' };
+    return { ok: false, error: "Command or encrypted_data required" };
   } catch (error) {
     return { ok: false, error: error.message };
   }
@@ -71,7 +72,9 @@ async function decryptRequest(encryptedData, headers, env) {
   try {
     // This would normally use WebCrypto in Cloudflare Workers
     // For Node.js testing, we'll add decryption logic
-    throw new Error('Decryption not yet implemented in Worker (requires WebCrypto)');
+    throw new Error(
+      "Decryption not yet implemented in Worker (requires WebCrypto)",
+    );
   } catch (error) {
     throw new Error(`Failed to decrypt request: ${error.message}`);
   }
@@ -84,10 +87,10 @@ async function antiTamperCheck(request, env) {
     const verified = await verifySignature(
       request,
       request.signature,
-      env.SIGNING_KEY
+      env.SIGNING_KEY,
     );
     if (!verified) {
-      throw new Error('Signature verification failed');
+      throw new Error("Signature verification failed");
     }
   }
 
@@ -100,7 +103,7 @@ async function antiTamperCheck(request, env) {
 }
 
 function validateDataTier(tier) {
-  const valid = ['TIER_1', 'TIER_2', 'TIER_3'];
+  const valid = ["TIER_1", "TIER_2", "TIER_3"];
   if (!valid.includes(tier)) {
     throw new Error(`Invalid data tier: ${tier}`);
   }

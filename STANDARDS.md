@@ -5,6 +5,7 @@ This file captures the core standards Claude should follow when generating code.
 ## General Standards
 
 ### Code Quality
+
 - ✅ **Use clear, modular code**
   - One responsibility per function
   - Self-documenting variable names
@@ -22,6 +23,7 @@ This file captures the core standards Claude should follow when generating code.
   - Cloudflare free tier compatible
 
 ### Technology Choices
+
 - ✅ **Prefer pure JavaScript for Worker code**
   - No TypeScript (adds complexity)
   - No build step required
@@ -33,7 +35,7 @@ This file captures the core standards Claude should follow when generating code.
   - Works anywhere on mobile
   - No runtime dependencies
   - Direct system integration
-  
+
   (Note: Termux CLI scaffolding uses Node.js/Commander for now, can be converted to Bash)
 
 ---
@@ -43,19 +45,20 @@ This file captures the core standards Claude should follow when generating code.
 These standards apply to `worker/` code.
 
 ### Authentication & Validation
+
 ```javascript
 // ✅ DO: Always validate Authorization header
 export async function handleRequest(request) {
-  const authHeader = request.headers.get('authorization');
+  const authHeader = request.headers.get("authorization");
   if (!authHeader) {
-    return respondError('Missing authorization', 401);
+    return respondError("Missing authorization", 401);
   }
-  
+
   const valid = await validateAuth(authHeader);
   if (!valid) {
-    return respondError('Invalid credentials', 401);
+    return respondError("Invalid credentials", 401);
   }
-  
+
   // Process request
 }
 
@@ -67,34 +70,36 @@ export async function handleRequest(request) {
 ```
 
 ### Response Format
+
 ```javascript
 // ✅ DO: Always return JSON
 return new Response(
   JSON.stringify({
     ok: true,
     data: result,
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   }),
   {
     status: 200,
-    headers: { 'Content-Type': 'application/json' }
-  }
+    headers: { "Content-Type": "application/json" },
+  },
 );
 
 // ❌ DON'T: Return plain text or mix formats
-return new Response('success');
+return new Response("success");
 ```
 
 ### Error Handling
+
 ```javascript
 // ✅ DO: Handle errors gracefully
 try {
   return await processCommand(request);
 } catch (error) {
-  console.error('Error:', error);
+  console.error("Error:", error);
   return respondError(
-    error.message || 'Internal error',
-    error.statusCode || 500
+    error.message || "Internal error",
+    error.statusCode || 500,
   );
 }
 
@@ -107,6 +112,7 @@ try {
 ```
 
 ### Endpoint Design
+
 ```javascript
 // ✅ DO: Keep endpoints simple and predictable
 // POST /api/command with clear payload
@@ -124,6 +130,7 @@ try {
 ```
 
 ### Code Structure
+
 ```javascript
 // ✅ DO: Clear separation of concerns
 // worker/index.js - routing
@@ -142,6 +149,7 @@ try {
 These standards apply to `warnetech_cli_legacy/` code.
 
 ### Command Design
+
 ```bash
 # ✅ DO: Short, intuitive commands
 warnetech ai "prompt"
@@ -157,6 +165,7 @@ warnetech github-push-changes "message"
 ```
 
 ### Output Format
+
 ```bash
 # ✅ DO: Clean, readable output
 $ warnetech status
@@ -177,6 +186,7 @@ Status: OK, Version: 1.0.0, Worker connection: established, etc.
 ```
 
 ### Error Messages
+
 ```bash
 # ✅ DO: Clear error explanation
 $ warnetech ai "prompt"
@@ -196,6 +206,7 @@ Connection failed
 ```
 
 ### Command Help
+
 ```bash
 # ✅ DO: Provide clear help
 $ warnetech help ai
@@ -222,27 +233,29 @@ ai - send prompt
 ## Implementation Patterns
 
 ### Worker: Validation Pattern
+
 ```javascript
 // worker/utils/validate.js
 async function validateRequest(body, headers, env) {
   // 1. Check authorization
-  const auth = headers.get('authorization');
-  if (!auth) return { ok: false, error: 'Missing auth' };
-  
+  const auth = headers.get("authorization");
+  if (!auth) return { ok: false, error: "Missing auth" };
+
   // 2. Check required fields
-  if (!body.command) return { ok: false, error: 'Missing command' };
-  
+  if (!body.command) return { ok: false, error: "Missing command" };
+
   // 3. Validate command
-  const validCommands = ['ai', 'gh', 'sys'];
+  const validCommands = ["ai", "gh", "sys"];
   if (!validCommands.includes(body.command)) {
-    return { ok: false, error: 'Invalid command' };
+    return { ok: false, error: "Invalid command" };
   }
-  
+
   return { ok: true, command: body.command, args: body.args };
 }
 ```
 
 ### Worker: Response Pattern
+
 ```javascript
 // worker/utils/respond.js
 function respondSuccess(data, command) {
@@ -251,9 +264,9 @@ function respondSuccess(data, command) {
       ok: true,
       command,
       data,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     }),
-    { status: 200, headers: { 'Content-Type': 'application/json' } }
+    { status: 200, headers: { "Content-Type": "application/json" } },
   );
 }
 
@@ -262,14 +275,15 @@ function respondError(message, statusCode = 500) {
     JSON.stringify({
       ok: false,
       error: message,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     }),
-    { status: statusCode, headers: { 'Content-Type': 'application/json' } }
+    { status: statusCode, headers: { "Content-Type": "application/json" } },
   );
 }
 ```
 
 ### CLI: Command Pattern
+
 ```bash
 #!/bin/bash
 # warnetech_cli_legacy/commands/ai.sh
@@ -297,10 +311,10 @@ main() {
     usage
     exit 1
   fi
-  
+
   local prompt="$1"
   shift
-  
+
   # Process options
   local stream=false
   while [[ $# -gt 0 ]]; do
@@ -310,7 +324,7 @@ main() {
       *) echo "Unknown option: $1"; exit 1 ;;
     esac
   done
-  
+
   # Send to Worker
   send_to_worker "ai" "$prompt"
 }
@@ -323,6 +337,7 @@ main "$@"
 ## Common Mistakes to Avoid
 
 ### Worker Mistakes
+
 ```javascript
 // ❌ Missing auth check
 export async function handle(request) {
@@ -341,10 +356,11 @@ return new Response(JSON.stringify(data)); // Missing header
 // Should include: headers: { 'Content-Type': 'application/json' }
 
 // ❌ Logging secrets
-console.log('API Key:', apiKey); // Never!
+console.log("API Key:", apiKey); // Never!
 ```
 
 ### CLI Mistakes
+
 ```bash
 # ❌ Unclear commands
 warnetech generateaicodefix "file.js"
@@ -371,6 +387,7 @@ Some commands show "OK", others show "success", others show nothing
 Use this checklist before committing code:
 
 ### Worker Code
+
 - [ ] Auth validation on all endpoints
 - [ ] All responses are JSON
 - [ ] All errors caught and handled
@@ -381,6 +398,7 @@ Use this checklist before committing code:
 - [ ] Lint passes: `npm run lint`
 
 ### CLI Code
+
 - [ ] Commands are short (1-2 words)
 - [ ] Output is clean & readable
 - [ ] Errors explain what went wrong
@@ -391,6 +409,7 @@ Use this checklist before committing code:
 - [ ] Tests included
 
 ### Both
+
 - [ ] No unnecessary dependencies
 - [ ] Code is lightweight
 - [ ] Comments only for non-obvious logic
@@ -405,20 +424,22 @@ Use this checklist before committing code:
 ## Quick Reference
 
 ### Auth Pattern
+
 ```javascript
-const auth = headers.get('authorization');
-if (!auth) return respondError('Unauthorized', 401);
+const auth = headers.get("authorization");
+if (!auth) return respondError("Unauthorized", 401);
 ```
 
 ### JSON Response Pattern
+
 ```javascript
-return new Response(
-  JSON.stringify({ ok: true, data }),
-  { headers: { 'Content-Type': 'application/json' } }
-);
+return new Response(JSON.stringify({ ok: true, data }), {
+  headers: { "Content-Type": "application/json" },
+});
 ```
 
 ### Error Handling Pattern
+
 ```javascript
 try {
   // operation
@@ -428,6 +449,7 @@ try {
 ```
 
 ### CLI Error Pattern
+
 ```bash
 echo "✗ Error: clear explanation"
 echo "  Next step: warnetech help command"
@@ -435,15 +457,16 @@ exit 1
 ```
 
 ### Command Pattern
+
 ```javascript
 // worker/commands/cmd.js
 async function handleCmd(args, env) {
   // Validate args
-  if (!args[0]) throw new Error('Argument required');
-  
+  if (!args[0]) throw new Error("Argument required");
+
   // Process
   const result = await doWork(args);
-  
+
   // Return result
   return result;
 }
@@ -467,28 +490,26 @@ export default handleCmd;
 ## Example: Good Code
 
 ### Worker Example
+
 ```javascript
 // worker/commands/ai.js
-import nemotron from '../utils/nemotron.js';
+import nemotron from "../utils/nemotron.js";
 
 async function handleAi(args, env) {
   // Validate
   if (!args || args.length === 0) {
-    throw new Error('Prompt required');
+    throw new Error("Prompt required");
   }
-  
+
   // Process
   const prompt = args[0];
-  const response = await nemotron.chat(
-    prompt,
-    env.NVIDIA_API_KEY
-  );
-  
+  const response = await nemotron.chat(prompt, env.NVIDIA_API_KEY);
+
   // Return
   return {
     response: response.text,
     tokens: response.tokens,
-    model: 'nemotron-3-ultra'
+    model: "nemotron-3-ultra",
   };
 }
 
@@ -496,6 +517,7 @@ export default handleAi;
 ```
 
 ### CLI Example
+
 ```bash
 #!/bin/bash
 # Shows clear output and error handling

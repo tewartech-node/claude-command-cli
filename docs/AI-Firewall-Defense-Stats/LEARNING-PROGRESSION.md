@@ -1,4 +1,5 @@
 # Learning Progression & Adaptive Defense Evolution
+
 ## How the AI Firewall Learned and Improved
 
 ---
@@ -10,27 +11,27 @@ The AI Firewall learns through a continuous feedback loop:
 ```
 1. ATTACK RECEIVED
    └─ Request analyzed
-      
+
 2. THREAT ANALYSIS
    ├─ Signature matching
    ├─ Behavioral analysis
    └─ Anomaly detection
-   
+
 3. DEFENSE DECISION
    ├─ Threat score calculated
    ├─ Confidence metric generated
    └─ Action selected
-   
+
 4. ACTION EXECUTION
    ├─ Block / Throttle / Allow / Isolate / Challenge
    └─ Result logged
-   
+
 5. LEARNING PHASE [NEW PATTERNS LEARNED HERE]
    ├─ Attack signature added/updated
    ├─ Defense metrics refined
    ├─ Threshold adapted
    └─ Confidence increased
-   
+
 6. READY FOR NEXT ATTACK [WITH IMPROVED DEFENSES]
 ```
 
@@ -69,7 +70,7 @@ Attack Count    Signatures  Avg Confidence  Adaptation Lvl  Pattern Density
 ```
 Signature Buildup:
 32 │                                        ****
-   │                                    ****    
+   │                                    ****
 24 │                              ****
    │                          ****
 16 │                      ****
@@ -90,18 +91,18 @@ Signature Buildup:
 
 ### Attack Type Confidence Progression
 
-| Attack Type | Initial | After 100 | After 200 | After 427 | Growth |
-|-------------|---------|-----------|-----------|-----------|--------|
-| SQL Injection | 70% | 82% | 90% | 94% | +24% |
-| XSS | 65% | 75% | 85% | 87% | +22% |
-| DDoS | 80% | 85% | 89% | 92% | +12% |
-| Brute Force | 75% | 82% | 86% | 91% | +16% |
-| Path Traversal | 72% | 80% | 85% | 89% | +17% |
-| Command Injection | 78% | 85% | 90% | 93% | +15% |
-| CSRF | 70% | 76% | 81% | 85% | +15% |
-| XXE | 65% | 72% | 78% | 83% | +18% |
-| Privilege Escalation | 75% | 83% | 88% | 90% | +15% |
-| Data Exfiltration | 82% | 88% | 92% | 95% | +13% |
+| Attack Type          | Initial | After 100 | After 200 | After 427 | Growth |
+| -------------------- | ------- | --------- | --------- | --------- | ------ |
+| SQL Injection        | 70%     | 82%       | 90%       | 94%       | +24%   |
+| XSS                  | 65%     | 75%       | 85%       | 87%       | +22%   |
+| DDoS                 | 80%     | 85%       | 89%       | 92%       | +12%   |
+| Brute Force          | 75%     | 82%       | 86%       | 91%       | +16%   |
+| Path Traversal       | 72%     | 80%       | 85%       | 89%       | +17%   |
+| Command Injection    | 78%     | 85%       | 90%       | 93%       | +15%   |
+| CSRF                 | 70%     | 76%       | 81%       | 85%       | +15%   |
+| XXE                  | 65%     | 72%       | 78%       | 83%       | +18%   |
+| Privilege Escalation | 75%     | 83%       | 88%       | 90%       | +15%   |
+| Data Exfiltration    | 82%     | 88%       | 92%       | 95%       | +13%   |
 
 **Average Growth:** +16.8% confidence increase across all attack types
 
@@ -112,6 +113,7 @@ Signature Buildup:
 ### Most Significant Patterns Learned
 
 #### Rank 1: Data Exfiltration Patterns
+
 - **Count:** 8 signatures
 - **Combined Weight:** 0.89
 - **Impact:** Highest block rate (97.5%)
@@ -122,6 +124,7 @@ Signature Buildup:
   - Slow data leak timing (weight: 0.85)
 
 #### Rank 2: SQL Injection Variants
+
 - **Count:** 6 signatures
 - **Combined Weight:** 0.84
 - **Impact:** 95.6% block rate
@@ -132,6 +135,7 @@ Signature Buildup:
   - Time-based blind SQLi (weight: 0.78)
 
 #### Rank 3: Command Injection Payloads
+
 - **Count:** 5 signatures
 - **Combined Weight:** 0.81
 - **Impact:** 96.0% block rate
@@ -141,11 +145,13 @@ Signature Buildup:
   - Piped commands (weight: 0.78)
 
 #### Rank 4: Path Traversal Encodings
+
 - **Count:** 4 signatures
 - **Combined Weight:** 0.78
 - **Impact:** 93.3% block rate
 
 #### Rank 5: XSS Vectors
+
 - **Count:** 3 signatures
 - **Combined Weight:** 0.75
 - **Impact:** 87.5% block rate (most improved)
@@ -188,12 +194,12 @@ Rate of Growth: +0.0007 per attack (average)
 
 ### Initial Thresholds vs Final Thresholds
 
-| Level | Initial | After Learning | Change |
-|-------|---------|-----------------|--------|
-| LOW | 0.30 | 0.28 | -6.7% (lower sensitivity) |
-| MEDIUM | 0.50 | 0.48 | -4.0% (lower sensitivity) |
-| HIGH | 0.75 | 0.73 | -2.7% (lower sensitivity) |
-| CRITICAL | 0.95 | 0.93 | -2.1% (lower sensitivity) |
+| Level    | Initial | After Learning | Change                    |
+| -------- | ------- | -------------- | ------------------------- |
+| LOW      | 0.30    | 0.28           | -6.7% (lower sensitivity) |
+| MEDIUM   | 0.50    | 0.48           | -4.0% (lower sensitivity) |
+| HIGH     | 0.75    | 0.73           | -2.7% (lower sensitivity) |
+| CRITICAL | 0.95    | 0.93           | -2.1% (lower sensitivity) |
 
 **Finding:** Thresholds slightly lowered, indicating the firewall learned to be more aggressive with its best-understood attack types while maintaining safety.
 
@@ -220,18 +226,18 @@ Re-test 3  110    107     1   2   97.3%     99.1%      98.2%
 
 ### How Quickly Each Attack Type Was Learned
 
-| Attack Type | Signatures | Attacks til 90% | Learning Speed | Efficiency |
-|-------------|-----------|-----------------|-----------------|------------|
-| Data Exfiltration | 8 | 45 | Very Fast | 0.89 |
-| Command Injection | 5 | 48 | Very Fast | 0.81 |
-| DDoS | 2 | 25 | Fast | 0.92 |
-| SQL Injection | 6 | 52 | Very Fast | 0.84 |
-| Brute Force | 2 | 35 | Fast | 0.91 |
-| Path Traversal | 4 | 58 | Moderate | 0.78 |
-| XXE | 2 | 65 | Moderate | 0.83 |
-| Privilege Escalation | 3 | 72 | Moderate | 0.90 |
-| CSRF | 1 | 78 | Slow | 0.85 |
-| XSS | 3 | 85 | Slow | 0.75 |
+| Attack Type          | Signatures | Attacks til 90% | Learning Speed | Efficiency |
+| -------------------- | ---------- | --------------- | -------------- | ---------- |
+| Data Exfiltration    | 8          | 45              | Very Fast      | 0.89       |
+| Command Injection    | 5          | 48              | Very Fast      | 0.81       |
+| DDoS                 | 2          | 25              | Fast           | 0.92       |
+| SQL Injection        | 6          | 52              | Very Fast      | 0.84       |
+| Brute Force          | 2          | 35              | Fast           | 0.91       |
+| Path Traversal       | 4          | 58              | Moderate       | 0.78       |
+| XXE                  | 2          | 65              | Moderate       | 0.83       |
+| Privilege Escalation | 3          | 72              | Moderate       | 0.90       |
+| CSRF                 | 1          | 78              | Slow           | 0.85       |
+| XSS                  | 3          | 85              | Slow           | 0.75       |
 
 **Fastest Learned:** Data Exfiltration (45 attacks to 90% accuracy)  
 **Slowest Learned:** XSS (85 attacks to 90% accuracy)
@@ -247,18 +253,18 @@ Re-test 3  110    107     1   2   97.3%     99.1%      98.2%
 ```
 Block Rate (%)
 99 │               DDoS*
-   │            
+   │
 95 │   SQL*        Data*
-   │     CmdInj*   
+   │     CmdInj*
 91 │        PrivEsc*
-   │    BF*     
+   │    BF*
 87 │ XSS*     Path*
    │      CSRF*  XXE*
 83 │
    └─────────────────────────
      70%  75%  80%  85%  90%  95%
      Confidence Score
-     
+
 * = Attack Type
 ```
 
@@ -351,7 +357,7 @@ Attacks 250-427:  0 new (0 per 50)
 ✅ **Adaptation multiplier increased 42%** (1.00 → 1.42)  
 ✅ **Learning speed optimal** - fast early learning, saturation by 150 attacks  
 ✅ **Attack type mastery** - all 10 types learned within trial  
-✅ **Confidence correlation** - strong r=0.92 correlation with block rates  
+✅ **Confidence correlation** - strong r=0.92 correlation with block rates
 
 ---
 
