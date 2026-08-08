@@ -92,14 +92,29 @@ function validateTimestamp(timestamp) {
   }
 }
 
-// Rate limiting check (placeholder for KV store implementation)
-async function checkRateLimit(apiKeyHash, env) {
-  // TODO: Implement with Cloudflare KV
-  // const key = `ratelimit:${apiKeyHash}`;
-  // const current = await env.KV.get(key);
-  // if (current >= RATE_LIMIT) {
-  //   throw new Error('Rate limit exceeded');
-  // }
+// Rate limiting: fixed 60s window, keyed by API key hash, per
+// docs/04_CODE_STANDARDS.md ("rate_limit:{userId}:{endpoint}").
+// Requires a KV binding (env.KV) — a Worker without one (e.g. local dev,
+// unit tests, or a deployment that hasn't set up KV yet) degrades to
+// "allow", matching the fail-soft pattern used across this codebase.
+const DEFAULT_RATE_LIMIT_PER_MINUTE = 100;
+
+async function checkRateLimit(apiKeyHash, env, endpoint = "cli") {
+  if (!env || !env.KV || !apiKeyHash) {
+    return true;
+  }
+
+  const limit = Number(env.RATE_LIMIT_PER_MINUTE) || DEFAULT_RATE_LIMIT_PER_MINUTE;
+  const windowSeconds = 60;
+  const windowId = Math.floor(Date.now() / 1000 / windowSeconds);
+  const key = `rate_limit:${apiKeyHash}:${endpoint}:${windowId}`;
+
+  const current = parseInt((await env.KV.get(key)) || "0", 10);
+  if (current >= limit) {
+    throw new Error(`Rate limit exceeded (${limit}/min)`);
+  }
+
+  await env.KV.put(key, String(current + 1), { expirationTtl: windowSeconds * 2 });
 
   return true;
 }
@@ -126,15 +141,25 @@ function validateDataTier(tier) {
   return true;
 }
 
-// Request deduplication (replay attack prevention)
+// Request deduplication (replay attack prevention).
+// Same fail-soft rule as checkRateLimit: without a KV binding there's
+// nowhere to remember request IDs across invocations, so we allow the
+// request rather than block on missing infrastructure.
 async function checkRequestDeduplication(requestId, env) {
-  // TODO: Implement with Cloudflare KV
-  // const key = `request_id:${requestId}`;
-  // const seen = await env.KV.get(key);
-  // if (seen) {
-  //   throw new Error('Duplicate request ID (replay attack detected)');
-  // }
-  // await env.KV.put(key, '1', { expirationTtl: 300 });
+  if (!env || !env.KV || !requestId) {
+    return true;
+  }
+
+  const key = `request_id:${requestId}`;
+  const seen = await env.KV.get(key);
+  if (seen) {
+    throw new Error("Duplicate request ID (replay attack detected)");
+  }
+
+  // TTL matches the 5-minute timestamp acceptance window in
+  // validateTimestamp() — no point remembering an ID longer than a
+  // replay of it could possibly be accepted.
+  await env.KV.put(key, "1", { expirationTtl: 300 });
 
   return true;
 }

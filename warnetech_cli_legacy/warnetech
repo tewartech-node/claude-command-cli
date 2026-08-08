@@ -198,9 +198,104 @@ program
 program
   .command("fix <file>")
   .description("Fix code issues in a file")
-  .action(async (file) => {
-    console.log(`✓ Analyzing ${file}...`);
-    // TODO: Implement fix command
+  .option(
+    "--apply",
+    "Ask the AI for a unified diff and apply it with `git apply` (backs up the file to <file>.bak first)",
+  )
+  .action(async (file, options) => {
+    try {
+      const config = await loadConfig();
+      if (!config.nemotron_api_key) {
+        console.log("✗ Error: NVIDIA_API_KEY not found in config");
+        console.log("  Run: warnetech init");
+        process.exit(1);
+      }
+
+      console.log(`✓ Analyzing ${file}...`);
+
+      let content;
+      try {
+        content = await fs.readFile(file, "utf-8");
+      } catch (error) {
+        console.log(`✗ Error: Could not read ${file}`);
+        console.log(`  ${error.message}`);
+        process.exit(1);
+      }
+
+      // System prompt per docs/07_AI_INTEGRATION.md's `warnetech fix` spec.
+      const prompt = [
+        `Analyze the following file (${file}) and:`,
+        "1. Identify any bugs, issues, or potential problems",
+        "2. Suggest specific fixes with code examples",
+        "3. Explain why each fix is needed",
+        "4. Rate severity: critical | high | medium | low",
+        "",
+        "Focus on: security vulnerabilities, performance issues, code quality, best practices.",
+        "",
+        `--- ${file} ---`,
+        content,
+      ].join("\n");
+
+      const { ok, data, error } = await sendToWorker("ai", [prompt], config);
+      if (!ok) {
+        console.log("✗ Error: Failed to analyze file");
+        console.log(`  ${error || data?.error}`);
+        process.exit(1);
+      }
+
+      console.log("");
+      console.log(data.data.response);
+      console.log("");
+
+      if (!options.apply) {
+        console.log(
+          `Run "warnetech fix ${file} --apply" to have the AI generate a patch and apply it (a .bak backup is made first).`,
+        );
+        return;
+      }
+
+      console.log("> Requesting a patch to apply...");
+      const diffPrompt = `${prompt}\n\nRespond with ONLY a valid unified diff (git diff format, paths relative to the current directory) that applies your fix. No prose, no markdown code fences.`;
+      const diffResult = await sendToWorker("ai", [diffPrompt], config);
+      if (!diffResult.ok) {
+        console.log("✗ Error: Could not generate a patch to apply");
+        console.log(`  ${diffResult.error || diffResult.data?.error}`);
+        process.exit(1);
+      }
+
+      // A trailing newline is required for `git apply` to accept a hunk
+      // ending mid-file (its absence reads as "corrupt patch") — trim
+      // stray whitespace from the model's response, then add exactly one
+      // back.
+      const patch = `${diffResult.data.data.response.trim()}\n`;
+      const backupPath = `${file}.bak`;
+      await fs.copyFile(file, backupPath);
+      console.log(`✓ Backed up original to ${backupPath}`);
+
+      const tmpPatchPath = path.join(
+        os.tmpdir(),
+        `warnetech-fix-${Date.now()}.patch`,
+      );
+      await fs.writeFile(tmpPatchPath, patch, "utf-8");
+
+      try {
+        await execAsync(`git apply "${tmpPatchPath}"`);
+        console.log(`✓ Applied fix to ${file}`);
+        console.log(`  Backup kept at: ${backupPath}`);
+      } catch (applyError) {
+        console.log("✗ Error: Failed to apply patch automatically");
+        // execAsync's rejection carries git's actual error on stderr; the
+        // top-level .message is just "Command failed: git apply ...".
+        console.log(`  ${(applyError.stderr || applyError.message).trim().split("\n").pop()}`);
+        console.log(`  Patch saved at: ${tmpPatchPath}`);
+        console.log(`  Original is untouched; backup also at: ${backupPath}`);
+        process.exit(1);
+      }
+    } catch (error) {
+      console.log("✗ Error: Unexpected error");
+      console.log(`  ${error.message}`);
+      process.exit(1);
+    }
   });
 
 // Explain command
@@ -208,8 +303,54 @@ program
   .command("explain <file>")
   .description("Explain code in a file")
   .action(async (file) => {
-    console.log(`✓ Explaining ${file}...`);
-    // TODO: Implement explain command
+    try {
+      const config = await loadConfig();
+      if (!config.nemotron_api_key) {
+        console.log("✗ Error: NVIDIA_API_KEY not found in config");
+        console.log("  Run: warnetech init");
+        process.exit(1);
+      }
+
+      console.log(`✓ Explaining ${file}...`);
+
+      let content;
+      try {
+        content = await fs.readFile(file, "utf-8");
+      } catch (error) {
+        console.log(`✗ Error: Could not read ${file}`);
+        console.log(`  ${error.message}`);
+        process.exit(1);
+      }
+
+      // System prompt per docs/07_AI_INTEGRATION.md's `warnetech explain` spec.
+      const prompt = [
+        `Explain the following file (${file}) in detail:`,
+        "1. Purpose and high-level overview",
+        "2. Key functions and their roles",
+        "3. Data flow and control flow",
+        "4. Dependencies and integrations",
+        "5. Security considerations if applicable",
+        "",
+        "Use clear language suitable for someone learning to code. Break down complex concepts.",
+        "",
+        `--- ${file} ---`,
+        content,
+      ].join("\n");
+
+      const { ok, data, error } = await sendToWorker("ai", [prompt], config);
+      if (!ok) {
+        console.log("✗ Error: Failed to explain file");
+        console.log(`  ${error || data?.error}`);
+        process.exit(1);
+      }
+
+      console.log("");
+      console.log(data.data.response);
+    } catch (error) {
+      console.log("✗ Error: Unexpected error");
+      console.log(`  ${error.message}`);
+      process.exit(1);
+    }
   });
 
 // GitHub commands
@@ -340,17 +481,79 @@ program
   .command("status")
   .description("Show system status")
   .action(async () => {
-    console.log("CLI Version: 0.1.0");
-    console.log("Status: ✓ Ready");
-    // TODO: Implement status command
+    const config = await loadConfig();
+    const configPath = path.join(os.homedir(), ".claude-cli", "config.json");
+
+    console.log(`CLI Version: ${pkg.version}`);
+    console.log(`Config: ${configPath}`);
+
+    const ping = await sendToWorker("ping", [], config);
+    if (!ping.ok) {
+      console.log(`Worker: ✗ Unreachable (${config.worker_url})`);
+      console.log(`  ${ping.error || ping.data?.error}`);
+      return;
+    }
+    console.log(`Worker: ✓ Connected (${config.worker_url})`);
+
+    const sys = await sendToWorker("sys", ["status"], config);
+    if (sys.ok) {
+      const { status, version, uptime, services } = sys.data.data;
+      console.log(`Server Status: ${status} (v${version}, uptime ${uptime}s)`);
+      console.log("Services:");
+      for (const [name, state] of Object.entries(services)) {
+        console.log(`  - ${name}: ${state}`);
+      }
+    }
+
+    const quota = await sendToWorker("sys", ["quota", "check"], config);
+    if (quota.ok) {
+      const { api_calls, storage, rate_limit, live, note } = quota.data.data;
+      console.log(`Quotas${live ? "" : " (example data)"}:`);
+      if (api_calls) {
+        console.log(`  - API Calls: ${api_calls.used}/${api_calls.limit}`);
+      }
+      if (storage && storage.used !== undefined) {
+        console.log(`  - Storage: ${storage.used}GB/${storage.limit}GB`);
+      }
+      if (rate_limit && rate_limit.used !== undefined) {
+        console.log(`  - Rate Limit: ${rate_limit.used}/${rate_limit.limit} per minute`);
+      }
+      if (note) {
+        console.log(`  note: ${note}`);
+      }
+    }
   });
 
 program
   .command("sync")
   .description("Sync with remote (quotas, baselines)")
   .action(async () => {
-    console.log("✓ Syncing...");
-    // TODO: Implement sync command
+    try {
+      const config = await loadConfig();
+      console.log("> Syncing...");
+      const { ok, data, error } = await sendToWorker("sys", ["sync"], config);
+
+      if (!ok) {
+        console.log("✗ Error: Sync failed");
+        console.log(`  ${error || data?.error}`);
+        process.exit(1);
+      }
+
+      const { synced, baselines_updated, signatures_updated, reason } =
+        data.data;
+      if (synced) {
+        console.log("✓ Synced");
+        console.log(`  Baselines updated: ${baselines_updated}`);
+        console.log(`  Signatures updated: ${signatures_updated}`);
+      } else {
+        console.log("✗ Not synced");
+        console.log(`  Reason: ${reason}`);
+      }
+    } catch (error) {
+      console.log("✗ Error: Unexpected error");
+      console.log(`  ${error.message}`);
+      process.exit(1);
+    }
   });
 
 program
@@ -358,12 +561,56 @@ program
   .description("Update CLI to latest version")
   .option("--check", "Only check for updates")
   .action(async (options) => {
-    if (options.check) {
-      console.log("✓ Checking for updates...");
-    } else {
-      console.log("✓ Updating CLI...");
+    // There's no signed GitHub-releases / R2-backup pipeline in this repo
+    // (see docs/05_CLI_COMMANDS.md's aspirational version of this command),
+    // so "update" here means what CLAUDE.md's own git workflow already
+    // relies on: fetch + fast-forward pull of the current branch.
+    try {
+      console.log(options.check ? "✓ Checking for updates..." : "✓ Updating CLI...");
+
+      await execAsync("git fetch origin");
+      const { stdout: branchOut } = await execAsync(
+        "git rev-parse --abbrev-ref HEAD",
+      );
+      const branch = branchOut.trim();
+      const { stdout: localOut } = await execAsync("git rev-parse HEAD");
+      const { stdout: remoteOut } = await execAsync(
+        `git rev-parse origin/${branch}`,
+      );
+      const local = localOut.trim();
+      const remote = remoteOut.trim();
+
+      if (local === remote) {
+        console.log(`✓ Already up to date (${branch} @ ${local.slice(0, 7)})`);
+        return;
+      }
+
+      const { stdout: countOut } = await execAsync(
+        `git rev-list --count ${local}..${remote}`,
+      );
+      console.log(
+        `✓ Update available: ${countOut.trim()} commit(s) behind origin/${branch}`,
+      );
+
+      if (options.check) {
+        console.log("  Run without --check to pull the latest changes");
+        return;
+      }
+
+      console.log("> Pulling...");
+      await execAsync("git pull --ff-only");
+      const newPkg = JSON.parse(
+        await fs.readFile(path.join(__dirname, "../package.json"), "utf-8"),
+      );
+      console.log(`✓ Updated to ${newPkg.version} (${remote.slice(0, 7)})`);
+    } catch (error) {
+      console.log("✗ Error: Update failed");
+      console.log(`  ${error.message.split("\n")[0]}`);
+      console.log(
+        "  This checks/pulls the current git branch — make sure the working tree is clean and origin is reachable.",
+      );
+      process.exit(1);
     }
-    // TODO: Implement update command
   });
 
 program
@@ -372,8 +619,81 @@ program
   .option("--dry-run", "Simulate update without deploying")
   .option("--check", "Only check for updates")
   .action(async (options) => {
-    console.log("🔄 Starting evolution...");
-    // TODO: Implement evolve command
+    // docs/09_AUTOMATION_PLAN.md describes a full sandbox-synthesis /
+    // atomic-deploy / rollback pipeline (D1 patch queue, staging Worker
+    // deploys, an AST mutation engine). None of that infrastructure
+    // exists in this repo, and a CLI that unattendedly rewrites and
+    // redeploys its own code is a real safety hazard — not something to
+    // fake with console.log lines. This implements the one safe, real
+    // slice of it: ask the AI for improvement suggestions grounded in
+    // this repo's own outstanding TODOs, and leave review/apply/deploy
+    // to a human (e.g. via `warnetech fix <file> --apply`).
+    try {
+      console.log("🔄 Starting evolution (synthesis-only; see comments in this file)...");
+      const config = await loadConfig();
+
+      let todoOutput = "";
+      try {
+        const { stdout } = await execAsync(
+          'grep -rn "TODO" --include=*.js --include=*.py . 2>/dev/null | grep -v node_modules | head -40',
+        );
+        todoOutput = stdout;
+      } catch (_error) {
+        // grep exits non-zero when there are no matches — that's fine, not a failure.
+        todoOutput = "";
+      }
+
+      if (options.check) {
+        const todoCount = todoOutput.trim()
+          ? todoOutput.trim().split("\n").length
+          : 0;
+        console.log(`✓ Found ${todoCount} outstanding TODO(s) in the working tree`);
+        console.log("  Run without --check to get AI suggestions for them");
+        return;
+      }
+
+      if (!config.nemotron_api_key) {
+        console.log("✗ Error: NVIDIA_API_KEY not found in config");
+        console.log("  Run: warnetech init");
+        process.exit(1);
+      }
+
+      const prompt = [
+        "Here are outstanding TODO comments from a codebase:",
+        "",
+        todoOutput || "(none found)",
+        "",
+        "Suggest concrete, minimal next steps to resolve the 3 most impactful ones.",
+        "Do not invent files or APIs that aren't shown above.",
+      ].join("\n");
+
+      console.log("🔨 Synthesizing suggestions from AI...");
+      const { ok, data, error } = await sendToWorker("ai", [prompt], config);
+      if (!ok) {
+        console.log("✗ Error: Could not get suggestions");
+        console.log(`  ${error || data?.error}`);
+        process.exit(1);
+      }
+
+      console.log("");
+      console.log(data.data.response);
+      console.log("");
+
+      if (options.dryRun) {
+        console.log("✓ Dry run complete — no files written, nothing deployed.");
+        return;
+      }
+
+      console.log("✓ Suggestions generated. Stopping here on purpose:");
+      console.log("  automated verification/deployment/rollback isn't implemented");
+      console.log('  (see the comment above "warnetech evolve" for why) —');
+      console.log("  review the suggestions and apply them by hand, e.g.:");
+      console.log('  warnetech fix "<file>" --apply');
+    } catch (error) {
+      console.log("✗ Error: Unexpected error");
+      console.log(`  ${error.message}`);
+      process.exit(1);
+    }
   });
 
 // Help command
@@ -383,8 +703,43 @@ program
   .option("--error <message>", "Get help with an error")
   .action(async (cmd, options) => {
     if (options.error) {
-      console.log(`✓ Getting help for error: ${options.error}`);
-      // TODO: Call Claude for error explanation
+      try {
+        const config = await loadConfig();
+        if (!config.nemotron_api_key) {
+          console.log("✗ Error: NVIDIA_API_KEY not found in config");
+          console.log("  Run: warnetech init");
+          process.exit(1);
+        }
+
+        console.log(`✓ Getting help for error: ${options.error}`);
+
+        // System prompt per docs/07_AI_INTEGRATION.md's `help --error` spec.
+        const prompt = [
+          "A user encountered an error in the Warnetech CLI system:",
+          `"${options.error}"`,
+          "",
+          "Provide:",
+          "1. Explanation of what went wrong",
+          "2. Likely causes",
+          "3. Step-by-step troubleshooting",
+          "4. Suggested commands to resolve",
+          "5. Prevention tips for the future",
+        ].join("\n");
+
+        const { ok, data, error } = await sendToWorker("ai", [prompt], config);
+        if (!ok) {
+          console.log("✗ Error: Could not get AI explanation");
+          console.log(`  ${error || data?.error}`);
+          process.exit(1);
+        }
+
+        console.log("");
+        console.log(data.data.response);
+      } catch (error) {
+        console.log("✗ Error: Unexpected error");
+        console.log(`  ${error.message}`);
+        process.exit(1);
+      }
     } else if (cmd) {
       console.log(`Help for: ${cmd}`);
       program.command(cmd).help();
@@ -397,11 +752,57 @@ program
 program
   .command("init")
   .description("Initialize configuration")
-  .action(async () => {
+  .option("--force", "Overwrite an existing config file")
+  .action(async (options) => {
+    const configDir = path.join(os.homedir(), ".claude-cli");
+    const configPath = path.join(configDir, "config.json");
+
+    try {
+      await fs.access(configPath);
+      if (!options.force) {
+        console.log(`✗ Config already exists: ${configPath}`);
+        console.log("  Run: warnetech init --force to overwrite");
+        process.exit(1);
+      }
+    } catch (_error) {
+      // Doesn't exist yet — nothing to do, fall through to create it.
+    }
+
     console.log("✓ Initializing configuration...");
-    const configPath = path.join(os.homedir(), ".claude-cli", "config.json");
-    // TODO: Implement init command - create config file
-    console.log(`Created: ${configPath}`);
+
+    try {
+      await fs.mkdir(configDir, { recursive: true });
+
+      // Defaults per docs/05_CLI_COMMANDS.md's `warnetech init` spec.
+      const defaultConfig = {
+        api_key: "your-key-here",
+        worker_url: "https://your-worker.workers.dev",
+        nemotron_api_key: "your-nemotron-key",
+        github_token: "your-github-token",
+        tier: 2,
+        cache_dir: path.join(configDir, "cache"),
+      };
+
+      // 0o600: this file holds secrets (api_key, tokens) — keep it
+      // readable only by the owner, per CLAUDE.md's "never log/leak
+      // plaintext secrets" principle. `mode` on writeFile only takes
+      // effect when the file is newly created (POSIX open() semantics),
+      // so with --force overwriting a pre-existing (possibly
+      // loosely-permissioned) file we chmod explicitly afterwards too.
+      await fs.writeFile(
+        configPath,
+        `${JSON.stringify(defaultConfig, null, 2)}\n`,
+        { mode: 0o600 },
+      );
+      await fs.chmod(configPath, 0o600);
+
+      console.log(`Created: ${configPath}`);
+      console.log("  Edit it to set your real api_key, worker_url, and nemotron_api_key.");
+    } catch (error) {
+      console.log("✗ Error: Could not create config");
+      console.log(`  ${error.message}`);
+      process.exit(1);
+    }
   });
 
 program.parse();

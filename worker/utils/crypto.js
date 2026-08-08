@@ -1,7 +1,7 @@
 // Cryptographic utilities for request/response encryption
 // Implements AES-256-GCM encryption with ChaCha20-Poly1305 fallback
 
-import { createHmac, timingSafeEqual, webcrypto } from "node:crypto";
+import { createHash, createHmac, timingSafeEqual, webcrypto } from "node:crypto";
 
 const ALGORITHM = "AES-GCM";
 const KEY_LENGTH = 256; // bits
@@ -115,6 +115,13 @@ function generateRequestId() {
   return `req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 }
 
+function hashApiKey(apiKey) {
+  // Same construction as warnetech_cli_legacy/crypto.js's hashApiKey —
+  // must match byte-for-byte since the Worker compares against what the
+  // CLI sends in the X-API-Key-Hash header.
+  return createHash("sha256").update(apiKey).digest("hex");
+}
+
 export {
   encryptData,
   decryptData,
@@ -122,4 +129,5 @@ export {
   generateHmacSignature,
   verifyHmacSignature,
   generateRequestId,
+  hashApiKey,
 };
