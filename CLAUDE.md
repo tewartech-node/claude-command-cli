@@ -54,8 +54,19 @@ still build and their tests still pass, so they are kept for regression
 coverage of the wire format, but:
 
 - No new features go into `worker/`. Add them to `warnetech_server/`.
-- The 16 outstanding TODO stubs in `worker/` and
-  `warnetech_cli_legacy/warnetech` will not be implemented.
+- **Update (2026-08-07):** the 16 TODO stubs in `worker/` and
+  `warnetech_cli_legacy/warnetech` previously described here as "will
+  not be implemented" *were* implemented, at the user's explicit
+  request. See the "Session update" entry at the bottom of TASKS.md for
+  what shipped, what was intentionally scoped down (`evolve`/`update`
+  don't match docs/09_AUTOMATION_PLAN.md's aspirational sandbox/rollback
+  design — see the comments in `warnetech_cli_legacy/warnetech` for why),
+  and what's still genuinely open (ChaCha20-Poly1305 fallback, Argon2id,
+  data-tier enforcement, WORM logging, real Cloudflare deployment).
+  Also fixed in the same pass: `worker/utils/validate.js`'s
+  `decryptRequest()` unconditionally threw — this is the exact class of
+  bug the paragraph below warns about ("that is what broke the
+  CLI/Worker channel"), just never actually wired up in the first place.
 - `docs/06_WORKER_SPEC.md` describes the legacy harness, not the
   canonical contract.
 

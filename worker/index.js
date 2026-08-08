@@ -1,4 +1,5 @@
 import { validateRequest, decryptRequest } from "./utils/validate.js";
+import { checkRateLimit, checkRequestDeduplication } from "./utils/security.js";
 import {
   respondSuccess,
   respondError,
@@ -55,15 +56,32 @@ async function handleRequest(request, env, ctx) {
         try {
           commandData = await decryptRequest(
             body.encrypted_data,
+            validation.signature,
             request.headers,
             env,
           );
         } catch (error) {
           return new Response(
-            JSON.stringify(respondError(new Error("Decryption failed"), 400)),
+            JSON.stringify(
+              respondError(new Error(`Decryption failed: ${error.message}`), 400),
+            ),
             { status: 400, headers: { "Content-Type": "application/json" } },
           );
         }
+      }
+
+      // Rate limit & replay checks (no-op without a KV binding — see
+      // worker/utils/security.js).
+      try {
+        const apiKeyHash = request.headers.get("x-api-key-hash");
+        const requestId = request.headers.get("x-request-id");
+        await checkRateLimit(apiKeyHash, env);
+        await checkRequestDeduplication(requestId, env);
+      } catch (error) {
+        return new Response(JSON.stringify(respondError(error, 429)), {
+          status: 429,
+          headers: { "Content-Type": "application/json" },
+        });
       }
 
       const { command, args } = commandData;

@@ -16,11 +16,17 @@ These are the primary development goals.
 
 - [x] Implement command parser (Commander.js)
 - [x] Add config file loading (~/.claude-cli/config.json)
-- [ ] Implement request encryption (AES-256-GCM)
-- [ ] Implement response decryption
+- [x] Implement request encryption (AES-256-GCM) — was already wired
+      client-side; the Worker never actually decrypted it until
+      2026-08-07 (see CLAUDE.md's Cloudflare status section)
+- [ ] Implement response decryption — CLI can decrypt an encrypted
+      response, but the Worker never sends one (`respondEncrypted()` in
+      worker/utils/respond.js is defined but unused); still open
 - [x] Add error handling & helpful messages
 - [x] Add progress indicators & formatting
-- [ ] Test with actual Worker
+- [x] Test with actual Worker — exercised end-to-end against a local
+      Worker instance over real HTTP (2026-08-07); not yet against an
+      actual Cloudflare deployment
 - [ ] Add bash completions
 - [ ] Package as standalone binary
 
@@ -40,17 +46,26 @@ These are the primary development goals.
 **Subtasks**:
 
 - [x] Implement basic request validation (validateRequest)
-- [ ] Implement AES-256-GCM encryption/decryption
+- [x] Implement AES-256-GCM encryption/decryption — decryptRequest() now
+      actually calls crypto.js's decryptData() instead of hard-throwing
+      (2026-08-07)
 - [ ] Implement ChaCha20-Poly1305 fallback
-- [ ] Implement Argon2id key derivation
-- [ ] Implement HMAC-SHA256 signature verification
-- [ ] Add anti-tamper checks
-- [ ] Add data tier enforcement
-- [ ] Implement rate limiting (Cloudflare KV)
+- [ ] Implement Argon2id key derivation (still PBKDF2)
+- [x] Implement HMAC-SHA256 signature verification — verified in
+      decryptRequest() against the request's `signature` field
+- [x] Add anti-tamper checks — signature + X-API-Key-Hash + timestamp
+      window enforced in the /cli request path
+- [ ] Add data tier enforcement — tiers are computed (getDataTier) but
+      nothing gates on them yet
+- [x] Implement rate limiting (Cloudflare KV) — worker/utils/security.js,
+      fails open (allows the request) without a KV binding
 - [x] Add comprehensive error handling
 - [ ] Add request/response logging (WORM storage)
 - [x] Test all endpoints (unit tests)
-- [ ] Deploy to Cloudflare
+- [ ] Deploy to Cloudflare — wrangler.toml now declares the
+      `nodejs_compat` flag and documents the KV/API_KEY/
+      WARNETECH_SERVER_URL bindings this code needs, but nothing has
+      actually been deployed
 
 **Related Docs**:
 
@@ -101,54 +116,69 @@ These are the primary development goals.
 
 #### Phase 2 - Intermediate Commands (In Progress)
 
-- [ ] `warnetech fix "<file>"` - Code fixing
-  - [ ] Read file content
-  - [ ] Send to AI with diagnostic prompt
-  - [ ] Display suggestions
-  - [ ] Option to apply fixes
+- [x] `warnetech fix "<file>"` - Code fixing (2026-08-07)
+  - [x] Read file content
+  - [x] Send to AI with diagnostic prompt
+  - [x] Display suggestions
+  - [x] Option to apply fixes — `--apply`: asks the AI for a unified
+        diff, backs up the file to `<file>.bak`, applies via `git apply`
 
-- [ ] `warnetech explain "<file>"` - Code explanation
-  - [ ] Read file content
-  - [ ] Generate explanation prompt
-  - [ ] Display formatted explanation
+- [x] `warnetech explain "<file>"` - Code explanation (2026-08-07)
+  - [x] Read file content
+  - [x] Generate explanation prompt
+  - [x] Display formatted explanation
 
 #### Phase 3 - System Commands (Planned)
 
-- [ ] `warnetech status` - System status
-  - [ ] Check Worker connectivity
-  - [ ] Show quota usage
-  - [ ] Display version info
-  - [ ] Show config status
+- [x] `warnetech status` - System status (2026-08-07)
+  - [x] Check Worker connectivity
+  - [x] Show quota usage
+  - [x] Display version info
+  - [x] Show config status
 
-- [ ] `warnetech sync` - Sync remote state
-  - [ ] Fetch baselines
-  - [ ] Update signatures
-  - [ ] Sync quotas
-  - [ ] Check for updates
+- [x] `warnetech sync` - Sync remote state (2026-08-07)
+  - [x] Fetch baselines / [x] Update signatures — both relayed through
+        `sys sync`, which is honest ("WARNETECH_SERVER_URL not
+        configured") when there's no warnetech-server to talk to
+        instead of fabricating a result
+  - [ ] Sync quotas — quota tracking lives in `warnetech quota`/`status`,
+        not merged into `sync`
+  - [ ] Check for updates — that's `warnetech update`, kept separate
 
-- [ ] `warnetech update` - Update CLI
-  - [ ] Check latest version
-  - [ ] Download new version
-  - [ ] Verify signature
-  - [ ] Atomic replacement
-  - [ ] Verify functionality
+- [~] `warnetech update` - Update CLI (2026-08-07, scoped down)
+  - [x] Check latest version — via `git fetch` + `rev-list --count`
+        against the current branch's origin, not a GitHub Releases API
+  - [ ] Download new version / [ ] Verify signature / [ ] Atomic
+        replacement — no signed-release pipeline exists in this repo;
+        `update` pulls the current git branch instead (see the comment
+        above the command in warnetech_cli_legacy/warnetech)
+  - [x] Verify functionality — reports the new commit/version after pulling
 
-- [ ] `warnetech evolve` - Self-update with AI synthesis
-  - [ ] Synthesis: Generate changes
-  - [ ] Verification: Test in sandbox
-  - [ ] Deployment: Atomic update
-  - [ ] Rollback: Restore if needed
+- [~] `warnetech evolve` - Self-update with AI synthesis (2026-08-07, scoped down)
+  - [x] Synthesis: Generate changes — asks the AI for suggestions based
+        on the repo's own TODO comments
+  - [ ] Verification: Test in sandbox / [ ] Deployment: Atomic update /
+        [ ] Rollback: Restore if needed — intentionally NOT built. An
+        unattended pipeline that lets a CLI rewrite and redeploy its own
+        code is a real safety hazard, and docs/09_AUTOMATION_PLAN.md's
+        design (D1 patch queue, staging Worker deploys, AST mutation
+        engine) doesn't exist anywhere in this codebase to build on top
+        of. `evolve` prints suggestions and stops, deferring review/apply
+        to a human (e.g. via `warnetech fix <file> --apply`).
 
-- [ ] `warnetech help [cmd]` - Help system
-  - [ ] Show general help
-  - [ ] Show command-specific help
-  - [ ] AI-powered error explanation (`--error`)
+- [x] `warnetech help [cmd]` - Help system
+  - [x] Show general help (pre-existing)
+  - [x] Show command-specific help (pre-existing)
+  - [x] AI-powered error explanation (`--error`) (2026-08-07)
 
 #### Secondary Commands
 
-- [ ] `warnetech init` - Initialize configuration
-- [ ] `warnetech quota` - Quota management
-- [ ] `warnetech detect-anomalies` - Security monitoring
+- [x] `warnetech init` - Initialize configuration (2026-08-07; `--force`
+      to overwrite, config file written 0600 since it holds secrets)
+- [ ] `warnetech quota` - Quota management — `sys quota check` exists
+      server-side (used by `status`) but isn't its own top-level CLI command
+- [ ] `warnetech detect-anomalies` - Security monitoring — same story;
+      `sys detect-anomalies` exists server-side, no dedicated CLI command
 - [ ] `warnetech sync-signatures` - Sync baselines
 - [ ] `warnetech request-score` - AI reinforcement scoring
 
@@ -621,5 +651,65 @@ If you encounter:
 
 ---
 
-**Last Updated**: 2026-08-05
+## Session Update (2026-08-07): Legacy Worker/CLI TODOs
+
+At the user's explicit request (overriding CLAUDE.md's prior "will not
+be implemented" note — see its Cloudflare status section), implemented
+all 16 `// TODO:` stubs across `worker/` and
+`warnetech_cli_legacy/warnetech`, plus two bugs found along the way:
+
+- **`worker/utils/validate.js`'s `decryptRequest()` unconditionally
+  threw** "not yet implemented" — every encrypted `/cli` request (which
+  is all of them; the CLI always encrypts) was failing before this fix.
+  Wired it to the already-correct `worker/utils/crypto.js` AES-256-GCM
+  implementation, added HMAC signature verification and an
+  X-API-Key-Hash fast-fail check. `worker/utils/crypto.js` was also
+  missing a `hashApiKey` export needed for that check.
+- **`gh.js`'s `ghOpen()` only returned `url`**, but the CLI destructures
+  `{ url, claude_url }` — `claude_url` was always `undefined`. Fixed to
+  return both, plus a new `repo_url` for the plain GitHub link.
+- `worker/utils/security.js`: rate limiting and replay-ID dedup, both
+  KV-backed, both fail-open (allow the request) without a KV binding.
+  Wired into `worker/index.js`'s request flow.
+- `worker/utils/nemotron.js`: streaming responses now request
+  `stream_options.include_usage` and parse real token counts from the
+  final SSE chunk instead of hardcoding zeros.
+- `worker/commands/sys.js`: `quota`/`sync`/`detect-anomalies`/`rollup`
+  now do real (KV- or WARNETECH_SERVER_URL-backed) work where possible,
+  and say so honestly (`live: false`, `"not configured"`, etc.) rather
+  than fabricating numbers when the backing infrastructure isn't there.
+- `wrangler.toml`: added the `nodejs_compat` compatibility flag (required
+  for `worker/utils/crypto.js`'s `node:crypto` import to resolve on the
+  real Workers runtime — Jest didn't need it, a real deployment would),
+  plus documented the `API_KEY`/KV/`WARNETECH_SERVER_URL` bindings this
+  code now expects.
+- `warnetech_cli_legacy/warnetech`: implemented `fix` (with `--apply`,
+  via AI-generated unified diff + `git apply` + a `.bak` backup),
+  `explain`, `status`, `sync`, `update` (git-based — see the "scoped
+  down" notes above), `evolve` (synthesis-only, same reasoning), `help
+  --error`, and `init` (0600-permissioned config file). Also fixed a
+  pre-existing bug where `evolve --dry-run` read
+  `options["dry-run"]`, which Commander never sets (it camelCases to
+  `options.dryRun`) — the flag silently did nothing before this.
+- Added Jest coverage for all of the above:
+  `__tests__/worker/index.test.js` (full encrypted round trip),
+  `__tests__/security/rate-limit.test.js`, `__tests__/commands/sys.test.js`,
+  `__tests__/utils/nemotron.test.js`.
+
+**Verification caveat**: this sandbox has no npm/pip registry access, so
+the real `jest`/`pytest` suites could not be run directly. Everything
+above was instead verified by executing the actual code: a temporary
+Commander-compatible shim (not committed) let the real
+`warnetech_cli_legacy/warnetech` binary run end-to-end against a local
+HTTP server built from the real `worker/index.js`, covering every new
+command plus `git`-based `update` against a real bare repo and
+`fix --apply` against a real `git apply`. A second temporary harness
+replayed all `__tests__/**/*.test.js` files (old and new) against the
+real assertions those files already contain — 92/92 passed. Run the
+real `npm test` once registry access is available to confirm under
+actual Jest.
+
+---
+
+**Last Updated**: 2026-08-07
 **Status**: 🚀 Active Development (v0.1.0)

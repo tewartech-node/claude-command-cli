@@ -1,4 +1,5 @@
 // Request validation, security checks, and decryption
+import { decryptData, hashApiKey, verifyHmacSignature } from "./crypto.js";
 
 async function validateRequest(body, headers, env) {
   try {
@@ -14,11 +15,9 @@ async function validateRequest(body, headers, env) {
       return { ok: false, error: "Request ID required" };
     }
 
-    // TODO: Check if request ID already seen
-    // const seen = await env.KV.get(`request_id:${requestId}`);
-    // if (seen) {
-    //   return { ok: false, error: 'Duplicate request ID' };
-    // }
+    // Replay-attack dedup is handled by security.js's
+    // checkRequestDeduplication(), invoked from index.js after validation
+    // succeeds (it needs the raw requestId, which we return below).
 
     // Validate timestamp
     const timestamp = headers.get("x-timestamp");
@@ -66,15 +65,50 @@ async function validateRequest(body, headers, env) {
   }
 }
 
-async function decryptRequest(encryptedData, headers, env) {
-  // Note: In production, use env.API_KEY retrieved from secure storage
-  // For now, we'll implement basic decryption framework
+async function decryptRequest(encryptedData, signature, headers, env) {
   try {
-    // This would normally use WebCrypto in Cloudflare Workers
-    // For Node.js testing, we'll add decryption logic
-    throw new Error(
-      "Decryption not yet implemented in Worker (requires WebCrypto)",
-    );
+    if (!env || !env.API_KEY) {
+      throw new Error("server missing API_KEY");
+    }
+
+    // Cheap fail-fast: the CLI sends a hash of its key so the Worker can
+    // reject an obviously-wrong key before spending a PBKDF2 derivation.
+    const apiKeyHash = headers.get("x-api-key-hash");
+    if (apiKeyHash && apiKeyHash !== hashApiKey(env.API_KEY)) {
+      throw new Error("API key mismatch");
+    }
+
+    // Verify the HMAC signature over the encrypted envelope before trusting
+    // it (defense in depth on top of AES-GCM's own auth tag).
+    if (signature) {
+      let signatureValid = false;
+      try {
+        signatureValid = verifyHmacSignature(
+          { encrypted_data: encryptedData },
+          signature,
+          env.API_KEY,
+        );
+      } catch (_error) {
+        signatureValid = false;
+      }
+      if (!signatureValid) {
+        throw new Error("signature verification failed");
+      }
+    }
+
+    const plaintext = await decryptData(encryptedData, env.API_KEY);
+
+    let parsed;
+    try {
+      parsed = JSON.parse(plaintext);
+    } catch (_error) {
+      throw new Error("decrypted payload is not valid JSON");
+    }
+
+    return {
+      command: parsed.command,
+      args: parsed.args || [],
+    };
   } catch (error) {
     throw new Error(`Failed to decrypt request: ${error.message}`);
   }

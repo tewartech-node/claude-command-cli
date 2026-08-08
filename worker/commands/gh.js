@@ -1,11 +1,18 @@
 export async function ghOpen(args, env) {
   const repo = args || "claude-command-cli";
-  const url = `https://claude.ai/new?repo=https://github.com/tewartech-node/${repo}`;
+  const repoUrl = `https://github.com/tewartech-node/${repo}`;
+  const url = `https://claude.ai/new?repo=${repoUrl}`;
 
   return {
     ok: true,
     action: "open_claude",
+    // `url` stays the claude.ai wrapper link for backwards compatibility
+    // with existing callers/tests; `claude_url` is the same value under
+    // the name the CLI (warnetech_cli_legacy/warnetech) actually reads,
+    // and `repo_url` exposes the plain GitHub link too.
     url,
+    claude_url: url,
+    repo_url: repoUrl,
   };
 }
 
