@@ -5,10 +5,9 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"syscall"
 
 	"github.com/tewartech-node/claude-cli/pkg/config"
-	"golang.org/x/crypto/ssh/terminal"
+	"golang.org/x/term"
 	"github.com/spf13/cobra"
 )
 
@@ -41,7 +40,7 @@ func runSetup() error {
 
 	// API Key (hidden input)
 	fmt.Print("API Key (hidden): ")
-	apiKeyBytes, err := terminal.ReadPassword(int(syscall.Stdin))
+	apiKeyBytes, err := term.ReadPassword(int(os.Stdin.Fd()))
 	if err != nil {
 		return fmt.Errorf("failed to read API key: %w", err)
 	}

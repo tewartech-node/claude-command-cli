@@ -2,7 +2,6 @@ package commands
 
 import (
 	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
 	"strings"
 

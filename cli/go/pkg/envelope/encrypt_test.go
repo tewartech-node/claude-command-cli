@@ -1,7 +1,6 @@
 package envelope
 
 import (
-	"encoding/json"
 	"testing"
 )
 
