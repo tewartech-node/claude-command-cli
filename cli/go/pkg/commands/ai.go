@@ -4,9 +4,12 @@ import (
 	"crypto/sha256"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/tewartech-node/claude-cli/pkg/client"
 	"github.com/tewartech-node/claude-cli/pkg/config"
+	"github.com/tewartech-node/claude-cli/pkg/log"
+	"github.com/tewartech-node/claude-cli/pkg/metrics"
 	"github.com/spf13/cobra"
 )
 
@@ -24,14 +27,29 @@ func NewAICommand() *cobra.Command {
 }
 
 func runAI(prompt string) error {
+	requestID := log.GetRequestID()
+	start := time.Now()
+
+	log.Infof(requestID, "Starting AI command execution")
+
 	// Load config
 	mgr, err := config.NewManager()
 	if err != nil {
+		duration := time.Since(start).Seconds()
+		metrics.CommandDuration.WithLabelValues("ai").Observe(duration)
+		metrics.CommandsTotal.WithLabelValues("ai", "error").Inc()
+		log.CommandFailed(requestID, "ai", int64(duration*1000), err)
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 
 	if !mgr.IsConfigured() {
-		return fmt.Errorf("CLI not configured. Run: claude setup")
+		err := fmt.Errorf("CLI not configured. Run: claude setup")
+		duration := time.Since(start).Seconds()
+		metrics.CommandDuration.WithLabelValues("ai").Observe(duration)
+		metrics.CommandsTotal.WithLabelValues("ai", "error").Inc()
+		metrics.ConfigErrors.WithLabelValues("not_configured").Inc()
+		log.CommandFailed(requestID, "ai", int64(duration*1000), err)
+		return err
 	}
 
 	// Create encryption key from API key
@@ -40,8 +58,19 @@ func runAI(prompt string) error {
 	// Create client
 	c, err := client.NewClient(mgr.GetConfig(), key)
 	if err != nil {
+		duration := time.Since(start).Seconds()
+		metrics.CommandDuration.WithLabelValues("ai").Observe(duration)
+		metrics.CommandsTotal.WithLabelValues("ai", "error").Inc()
+		log.CommandFailed(requestID, "ai", int64(duration*1000), err)
 		return fmt.Errorf("failed to create client: %w", err)
 	}
+
+	// Log command start with metrics
+	metrics.CommandsTotal.WithLabelValues("ai", "started").Inc()
+	log.CommandStarted(requestID, "ai", map[string]interface{}{
+		"prompt_length": len(prompt),
+		"model":         mgr.GetConfig().User.PreferredModel,
+	})
 
 	// Execute command
 	fmt.Print("⏳ Processing... ")
@@ -50,22 +79,33 @@ func runAI(prompt string) error {
 		"prompt": prompt,
 		"model":  mgr.GetConfig().User.PreferredModel,
 	})
+
+	duration := time.Since(start).Seconds()
+	durationMs := int64(duration * 1000)
+
 	if err != nil {
 		fmt.Printf("✗\n")
+		metrics.CommandDuration.WithLabelValues("ai").Observe(duration)
+		metrics.CommandsTotal.WithLabelValues("ai", "error").Inc()
+		log.CommandFailed(requestID, "ai", durationMs, err)
 		return err
 	}
 
 	fmt.Printf("✓\n\n")
+	metrics.CommandDuration.WithLabelValues("ai").Observe(duration)
+	metrics.CommandsTotal.WithLabelValues("ai", "success").Inc()
 
 	// Display response
 	if data, ok := resp.Data.(map[string]interface{}); ok {
 		if content, ok := data["content"].(string); ok {
+			log.CommandCompleted(requestID, "ai", durationMs)
 			fmt.Println(content)
 			return nil
 		}
 	}
 
 	// Fallback: display raw data
+	log.CommandCompleted(requestID, "ai", durationMs)
 	fmt.Printf("%v\n", resp.Data)
 	return nil
 }
