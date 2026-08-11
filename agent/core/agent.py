@@ -27,25 +27,23 @@ class AutonomousAgent:
         self,
         name: str = "your-brain",
         cli_path: str = "./cli/go/bin/claude",
-        email: str = "warnet.dev01@gmail.com",
-        gmail_password: str = None,
         monthly_budget: float = 0.0,
         storage_dir: str = "./agent/storage"
     ):
         self.name = name
-        self.email = email
         self.cli_path = cli_path
-        self.gmail_password = gmail_password
         self.monthly_budget = monthly_budget
         self.storage_dir = Path(storage_dir)
         self.storage_dir.mkdir(parents=True, exist_ok=True)
+
+        # Log file
+        self.log_file = self.storage_dir / "brain.log"
 
         # Core systems
         self.cli = CLIExecutor(cli_path)
         self.safety = SafetyRules()
         self.memory = Memory(str(self.storage_dir / "memory.db"))
         self.reasoning = Reasoning()
-        self.emailer = EmailHandler(email, gmail_password)
         self.monitor = SystemMonitor()
 
         # State
@@ -55,10 +53,10 @@ class AutonomousAgent:
         self.start_time = datetime.now()
 
         print(f"🧠 {self.name} initialized (v0.1.0-alpha)")
-        print(f"   Email: {email}")
         print(f"   CLI: {cli_path}")
         print(f"   Storage: {self.storage_dir}")
         print(f"   Budget: ${monthly_budget}/month")
+        print(f"   Logs: {self.log_file}")
 
     async def initialize(self):
         """Set up all systems"""
@@ -74,14 +72,9 @@ class AutonomousAgent:
         except Exception as e:
             print(f"   ⚠️  CLI unavailable: {e}")
 
-        # Test email
-        print(f"   ✅ Email configured: {self.email}")
-
-        # First report
-        await self.emailer.send_report(
-            subject="🧠 Brain Initialized",
-            body=self._generate_startup_report()
-        )
+        # Write startup report to log
+        self._write_log("🧠 BRAIN STARTUP REPORT")
+        self._write_log(self._generate_startup_report())
 
         print(f"\n✅ Brain ready to think.\n")
 
@@ -103,12 +96,9 @@ class AutonomousAgent:
                 # Every 5 minutes: Think
                 await self._think_cycle()
 
-                # Every 24 hours: Daily report
+                # Every 24 hours: Daily report to log
                 if iteration % 288 == 0:  # 288 * 5min = 24 hours
-                    await self._send_daily_report()
-
-                # Check for email commands
-                await self._check_email_for_commands()
+                    self._write_daily_report()
 
                 # Sleep interval (5 minutes)
                 await asyncio.sleep(300)
@@ -119,10 +109,7 @@ class AutonomousAgent:
                 break
             except Exception as e:
                 print(f"\n❌ Error in thinking loop: {e}")
-                await self.emailer.send_alert(
-                    subject="🚨 Brain Error",
-                    message=f"Error in thinking loop: {e}"
-                )
+                self._write_log(f"ERROR: {e}")
                 await asyncio.sleep(60)  # Sleep before retrying
 
     async def _think_cycle(self):
@@ -187,32 +174,22 @@ class AutonomousAgent:
                 "timestamp": current_time.isoformat()
             })
 
-    async def _check_email_for_commands(self):
-        """Check email for commands from user"""
+    def _write_log(self, message: str):
+        """Write to log file"""
         try:
-            commands = await self.emailer.get_commands()
-
-            if commands:
-                print(f"\n📧 Received {len(commands)} command(s) from user")
-                for cmd in commands:
-                    print(f"   > {cmd}")
-                    await self.memory.record_decision(
-                        decision={"name": "user_command", "command": cmd},
-                        outcome={"success": True, "message": "User directive received"},
-                        timestamp=datetime.now()
-                    )
+            with open(self.log_file, "a") as f:
+                f.write(f"[{datetime.now().isoformat()}] {message}\n")
         except Exception as e:
-            # Silently fail - email check is optional
-            pass
+            print(f"Log write error: {e}")
 
-    async def _send_daily_report(self):
-        """Generate and send daily report"""
+    def _write_daily_report(self):
+        """Write daily report to log"""
         report = self._generate_daily_report()
-        await self.emailer.send_report(
-            subject="🧠 Brain Daily Report",
-            body=report
-        )
-        print(f"\n📧 Daily report sent to {self.email}")
+        self._write_log("\n" + "="*60)
+        self._write_log("🧠 DAILY REPORT")
+        self._write_log("="*60)
+        self._write_log(report)
+        print(f"\n📝 Daily report written to log")
 
     def _generate_startup_report(self) -> str:
         """Generate startup report"""
@@ -225,19 +202,17 @@ Status: Ready to think autonomously
 
 Configuration:
 - CLI Path: {self.cli_path}
-- Email: {self.email}
 - Monthly Budget: ${self.monthly_budget}
 - Storage: {self.storage_dir}
+- Log File: {self.log_file}
 
 Next Actions:
 - Begin autonomous thinking every 5 minutes
-- Send daily reports at 10 PM
-- Monitor your email for commands
+- Write daily reports to log file at 10 PM
+- All decisions and learning stored locally
 
-You can reply to this email with simple commands:
-> yes, implement caching
-> pause everything
-> focus on performance
+View the log:
+  tail -f {self.log_file}
 
 The Brain is now running. Welcome to your AI future. 🚀
 """
@@ -300,21 +275,13 @@ Next report: Tomorrow at 10 PM
 
 if __name__ == "__main__":
     # Environment variables
-    gmail_password = os.getenv("GMAIL_PASSWORD")
     cli_path = os.getenv("CLI_PATH", "./cli/go/bin/claude")
     budget = float(os.getenv("MONTHLY_BUDGET", "0.0"))
-
-    if not gmail_password:
-        print("❌ Error: GMAIL_PASSWORD not set")
-        print("   Set with: export GMAIL_PASSWORD='your-app-password'")
-        sys.exit(1)
 
     # Create agent
     brain = AutonomousAgent(
         name="your-brain",
         cli_path=cli_path,
-        email="warnet.dev01@gmail.com",
-        gmail_password=gmail_password,
         monthly_budget=budget
     )
 

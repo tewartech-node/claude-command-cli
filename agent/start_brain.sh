@@ -14,29 +14,12 @@ NC='\033[0m' # No Color
 echo -e "${BLUE}🧠 Starting The Brain${NC}"
 echo ""
 
-# Check for gmail password
-if [ -z "$1" ]; then
-    echo -e "${RED}❌ Error: Gmail app password required${NC}"
-    echo "Usage: ./agent/start_brain.sh '<your-app-password>' [monthly_budget]"
-    echo ""
-    echo "How to get Gmail app password:"
-    echo "  1. Go to: https://myaccount.google.com/security"
-    echo "  2. Enable 2-Step Verification"
-    echo "  3. Go to App Passwords"
-    echo "  4. Select: Mail + Windows Computer"
-    echo "  5. Copy the 16-character password"
-    echo ""
-    exit 1
-fi
-
-GMAIL_PASSWORD="$1"
-MONTHLY_BUDGET="${2:-0.0}"
+MONTHLY_BUDGET="${1:-0.0}"
 
 echo -e "${GREEN}✅ Configuration:${NC}"
-echo "   Gmail: warnet.dev01@gmail.com"
-echo "   Password: ****** (hidden)"
 echo "   Monthly Budget: \$$MONTHLY_BUDGET"
 echo "   CLI Path: ./cli/go/bin/claude"
+echo "   Logs: ./agent/storage/brain.log"
 echo ""
 
 # Check if CLI exists
