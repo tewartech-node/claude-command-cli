@@ -1,12 +1,14 @@
 """
 CLI Executor: Brain's body
 Runs CLI commands autonomously
+Supports both CLI and direct API (for Termux/Android compatibility)
 """
 
 import asyncio
 import subprocess
 import json
 from pathlib import Path
+import os
 
 
 class CLIExecutor:
@@ -15,6 +17,7 @@ class CLIExecutor:
     def __init__(self, cli_path: str = "./cli/go/bin/claude"):
         self.cli_path = cli_path
         self.cmd_count = 0
+        self.api_key = os.getenv("ANTHROPIC_API_KEY", "")
 
     async def execute_command(
         self,
@@ -67,12 +70,50 @@ class CLIExecutor:
             }
 
     async def ask_claude(self, prompt: str) -> str:
-        """Use 'claude ai' to ask a question"""
+        """Ask Claude via CLI, fallback to direct API (Android)"""
         result = await self.execute_command(
             "ai",
             {"prompt": prompt}
         )
-        return result.get("output", "")
+
+        if result.get("success"):
+            return result.get("output", "")
+
+        # Android fallback: direct API call
+        if self.api_key:
+            return await self._ask_claude_api(prompt)
+
+        return f"Error: {result.get('error', 'CLI unavailable')}"
+
+    async def _ask_claude_api(self, prompt: str) -> str:
+        """Call Claude API directly (Android Termux fallback)"""
+        try:
+            import httpx
+
+            async with httpx.AsyncClient(timeout=30) as client:
+                response = await client.post(
+                    "https://api.anthropic.com/v1/messages",
+                    headers={
+                        "x-api-key": self.api_key,
+                        "anthropic-version": "2023-06-01",
+                        "content-type": "application/json"
+                    },
+                    json={
+                        "model": "claude-3-5-sonnet-20241022",
+                        "max_tokens": 1024,
+                        "messages": [{"role": "user", "content": prompt}]
+                    }
+                )
+
+                if response.status_code == 200:
+                    data = response.json()
+                    return data.get("content", [{}])[0].get("text", "")
+                else:
+                    return f"API error {response.status_code}: {response.text}"
+        except ImportError:
+            return "Error: httpx not installed"
+        except Exception as e:
+            return f"API error: {e}"
 
     async def check_status(self) -> dict:
         """Use 'claude status' to check system"""
