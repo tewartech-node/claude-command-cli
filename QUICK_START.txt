@@ -1,0 +1,163 @@
+================================================================================
+THE BRAIN: QUICK START FOR TERMUX (64-bit)
+================================================================================
+
+Copy and paste each section in order. On Android Termux, long-press to paste.
+
+================================================================================
+STEP 1: OPEN TERMUX & UPDATE
+================================================================================
+
+pkg update && pkg upgrade -y
+
+================================================================================
+STEP 2: INSTALL TOOLS
+================================================================================
+
+pkg install -y python git golang
+
+================================================================================
+STEP 3: VERIFY INSTALLED
+================================================================================
+
+python3 --version
+git --version
+go version
+
+================================================================================
+STEP 4: CLONE REPO
+================================================================================
+
+cd ~
+git clone https://github.com/tewartech-node/claude-command-cli.git
+cd claude-command-cli
+git checkout claude/repo-push-bug-fixes-hxo19w
+
+================================================================================
+STEP 5: BUILD CLI (64-bit)
+================================================================================
+
+cd cli/go
+go build -o bin/claude ./cmd/claude
+cd ../..
+ls -la cli/go/bin/claude
+
+(Should show ~16MB file)
+
+================================================================================
+STEP 6: INSTALL PYTHON PACKAGES FROM TERMUX
+================================================================================
+
+pkg install -y python-psutil
+
+================================================================================
+STEP 7: INSTALL PYTHON HTTPX
+================================================================================
+
+pip install httpx
+
+================================================================================
+STEP 8: VERIFY ALL READY
+================================================================================
+
+python3 -c "import psutil; import httpx; print('✅ Ready')"
+
+================================================================================
+STEP 9: START THE BRAIN
+================================================================================
+
+./agent/start_brain.sh '?qwerty4claude2026?' 0.0
+
+(Brain will start thinking every 5 minutes)
+
+================================================================================
+KEEP BRAIN RUNNING IN BACKGROUND
+================================================================================
+
+Close Termux? Run this first:
+
+nohup ./agent/start_brain.sh '?qwerty4claude2026?' 0.0 > ~/brain.log 2>&1 &
+
+Check if running:
+
+ps aux | grep agent
+
+View log:
+
+tail -f ~/brain.log
+
+================================================================================
+AUTO-START ON PHONE REBOOT
+================================================================================
+
+pkg install termux-boot
+mkdir -p ~/.termux/boot
+
+cat > ~/.termux/boot/start_brain.sh << 'EOF'
+#!/data/data/com.termux/files/usr/bin/bash
+cd ~/claude-command-cli
+nohup ./agent/start_brain.sh '?qwerty4claude2026?' 0.0 > ~/brain.log 2>&1 &
+EOF
+
+chmod +x ~/.termux/boot/start_brain.sh
+
+Install Termux:Boot app from F-Droid, enable notifications.
+Brain now starts automatically.
+
+================================================================================
+COMMAND YOUR BRAIN VIA EMAIL
+================================================================================
+
+Reply to any Brain email with:
+
+> yes, implement caching
+> focus on optimization
+> pause everything
+
+Brain reads "> " lines and acts on them.
+
+================================================================================
+TROUBLESHOOTING
+================================================================================
+
+CLI not found?
+  cd cli/go && go build -o bin/claude ./cmd/claude && cd ../..
+
+psutil error?
+  pkg install -y python-psutil
+
+httpx error?
+  pip install httpx
+
+Permission denied on script?
+  chmod +x agent/start_brain.sh
+
+Brain won't send emails?
+  ping google.com (check internet)
+  Verify Gmail app password: ?qwerty4claude2026?
+
+================================================================================
+YOUR BRAIN IS ALIVE
+================================================================================
+
+✅ Thinks every 5 minutes
+✅ Learns continuously
+✅ Reports daily to warnet.dev01@gmail.com
+✅ Takes commands via email
+✅ Respects 3 safety rules
+✅ Tracks costs & efficiency
+
+Welcome to your AI-powered future. 🚀
+
+================================================================================
+PUSH UPDATES BACK TO GITHUB (After SSH setup)
+================================================================================
+
+After making changes:
+
+cd ~/claude-command-cli
+git add .
+git commit -m "your message here"
+git push -u origin claude/repo-push-bug-fixes-hxo19w
+
+================================================================================
