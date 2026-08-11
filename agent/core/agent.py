@@ -11,15 +11,13 @@ from datetime import datetime, timedelta
 from pathlib import Path
 import sys
 
-# Add parent to path for imports
-sys.path.insert(0, str(Path(__file__).parent.parent.parent))
-
-from agent.executor.cli_executor import CLIExecutor
-from agent.core.safety import SafetyRules
-from agent.core.memory import Memory
-from agent.core.reasoning import Reasoning
-from agent.communication.email_handler import EmailHandler
-from agent.monitoring.monitor import SystemMonitor
+# Relative imports for submodules
+from ..executor.cli_executor import CLIExecutor
+from .safety import SafetyRules
+from .memory import Memory
+from .reasoning import Reasoning
+from ..communication.email_handler import EmailHandler
+from ..monitoring.monitor import SystemMonitor
 
 
 class AutonomousAgent:

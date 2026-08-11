@@ -65,5 +65,6 @@ echo ""
 echo -e "${BLUE}🚀 Launching Brain...${NC}"
 echo ""
 
-# Run the agent
-python3 agent/core/agent.py
+# Run the agent as a module
+cd "$(dirname "$0")/.."
+python3 -m agent.core.agent
