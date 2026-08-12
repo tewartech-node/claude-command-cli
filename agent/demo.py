@@ -161,24 +161,26 @@ async def demo_performance_tracker():
     for agent_type, task_type, quality, success in executions:
         tracker.record_execution(
             agent_name=f"{agent_type}-agent",
-            agent_type=agent_type,
             task_type=task_type,
             success=success,
+            duration_ms=100,
             quality_score=quality,
-            duration_ms=100
+            cost=0.0
         )
 
     # Show learned preferences
     print("Task Type Performance:\n")
     for task_type in ["financial-data", "code-quality", "content-creation", "sentiment-analysis"]:
         best_agent = tracker.get_best_agent_for_task(task_type)
-        if best_agent:
+        if best_agent and best_agent != "default":
             rating = tracker.agent_ratings.get(best_agent, {})
+            task_rating = rating.get("by_task_type", {}).get(task_type, {})
+            success_rate = task_rating.get("successful", 0) / task_rating.get("total", 1) if task_rating.get("total", 0) > 0 else 0
             print_result(f"  {task_type}", {
                 "best_agent": best_agent,
-                "success_rate": f"{rating.get('success_rate', 0):.1%}",
-                "avg_quality": f"{rating.get('avg_quality', 0):.2f}",
-                "calls": rating.get('total_executions', 0)
+                "success_rate": f"{success_rate:.1%}",
+                "avg_quality": f"{task_rating.get('average_quality', 0):.2f}",
+                "calls": task_rating.get('total', 0)
             })
 
     # Identify improvement opportunities
