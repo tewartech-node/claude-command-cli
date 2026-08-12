@@ -204,6 +204,6 @@ class Commands:
         """Trigger a database partition/rollup sync via warnetech-server."""
         return self.client.post("/db/sync")
 
-    def ai_diagnose(self):
-        from warnetech_ai_controller.diagnostics import ai_diagnose
-        return ai_diagnose()
+    def ai_diagnose(self) -> Dict[str, Any]:
+        """Run the full 8-check system self-test (see warnetech_cli.diagnostics)."""
+        return diagnostics.diagnose(self.config, self.client)
