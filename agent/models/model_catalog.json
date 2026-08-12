@@ -1,0 +1,155 @@
+{
+  "ollama": {
+    "provider": "ollama",
+    "description": "Local open-source models - unlimited free",
+    "install_url": "https://ollama.ai",
+    "models": [
+      {
+        "id": "mistral",
+        "name": "Mistral 7B",
+        "size": "4.1GB",
+        "speed": "Fast",
+        "quality": "High",
+        "recommended": true,
+        "command": "ollama pull mistral",
+        "description": "Best balance of speed and quality for The Brain"
+      },
+      {
+        "id": "llama2",
+        "name": "Llama 2 7B",
+        "size": "3.8GB",
+        "speed": "Fast",
+        "quality": "High",
+        "recommended": false,
+        "command": "ollama pull llama2",
+        "description": "Meta's open source model, good quality"
+      },
+      {
+        "id": "neural-chat",
+        "name": "Neural Chat 7B",
+        "size": "4.1GB",
+        "speed": "Very Fast",
+        "quality": "Good",
+        "recommended": false,
+        "command": "ollama pull neural-chat",
+        "description": "Optimized for chat, very responsive"
+      },
+      {
+        "id": "zephyr",
+        "name": "Zephyr 7B",
+        "size": "4.1GB",
+        "speed": "Fast",
+        "quality": "Very High",
+        "recommended": false,
+        "command": "ollama pull zephyr",
+        "description": "Fine-tuned Mistral, excellent reasoning"
+      },
+      {
+        "id": "orca-mini",
+        "name": "Orca Mini 3B",
+        "size": "1.9GB",
+        "speed": "Very Fast",
+        "quality": "Good",
+        "recommended": false,
+        "command": "ollama pull orca-mini",
+        "description": "Lightweight, great for old devices"
+      }
+    ]
+  },
+  "groq": {
+    "provider": "groq",
+    "description": "Fast cloud inference - free 30 req/min",
+    "api_url": "https://console.groq.com",
+    "api_key_required": true,
+    "models": [
+      {
+        "id": "mixtral-8x7b-32768",
+        "name": "Mixtral 8x7B",
+        "speed": "Very Fast",
+        "quality": "Excellent",
+        "recommended": true,
+        "description": "Best quality on Groq, excellent reasoning"
+      },
+      {
+        "id": "llama2-70b-4096",
+        "name": "Llama 2 70B",
+        "speed": "Fast",
+        "quality": "Very High",
+        "recommended": false,
+        "description": "Larger model, better understanding"
+      },
+      {
+        "id": "llama2-13b-chat",
+        "name": "Llama 2 13B Chat",
+        "speed": "Very Fast",
+        "quality": "High",
+        "recommended": false,
+        "description": "Fast and capable"
+      }
+    ]
+  },
+  "together": {
+    "provider": "together",
+    "description": "Together AI - free tier available",
+    "api_url": "https://www.together.ai",
+    "api_key_required": true,
+    "models": [
+      {
+        "id": "mistralai/Mistral-7B-Instruct-v0.1",
+        "name": "Mistral 7B Instruct",
+        "speed": "Fast",
+        "quality": "High",
+        "recommended": true,
+        "description": "Mistral optimized for instructions"
+      },
+      {
+        "id": "meta-llama/Llama-2-7b-chat-hf",
+        "name": "Llama 2 7B Chat",
+        "speed": "Fast",
+        "quality": "High",
+        "recommended": false,
+        "description": "Meta's chat model"
+      },
+      {
+        "id": "NousResearch/Nous-Hermes-2-Mixtral-8x7B-DPO",
+        "name": "Nous Hermes 2 Mixtral",
+        "speed": "Medium",
+        "quality": "Very High",
+        "recommended": false,
+        "description": "Advanced reasoning capabilities"
+      }
+    ]
+  },
+  "huggingface": {
+    "provider": "huggingface",
+    "description": "HuggingFace - free tier with limits",
+    "api_url": "https://huggingface.co",
+    "api_key_required": true,
+    "models": [
+      {
+        "id": "gpt2",
+        "name": "GPT-2",
+        "speed": "Very Fast",
+        "quality": "Good",
+        "recommended": true,
+        "description": "Fast and reliable, good for quick responses"
+      },
+      {
+        "id": "mistralai/Mistral-7B-v0.1",
+        "name": "Mistral 7B",
+        "speed": "Fast",
+        "quality": "High",
+        "recommended": false,
+        "description": "Mistral on HuggingFace"
+      },
+      {
+        "id": "tiiuae/falcon-7b",
+        "name": "Falcon 7B",
+        "speed": "Fast",
+        "quality": "High",
+        "recommended": false,
+        "description": "TII's fast model"
+      }
+    ]
+  }
+}
