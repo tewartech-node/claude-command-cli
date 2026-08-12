@@ -1,0 +1,33 @@
+{
+  "this_device": {
+    "device_id": "device-1",
+    "device_name": "My Brain",
+    "platform": "termux",
+    "arch": "arm64",
+    "memory_path": "./agent/storage/memory.db",
+    "enabled": true
+  },
+  "network_peers": [
+    {
+      "device_id": "arrdee",
+      "device_name": "Galaxy Tab (64-bit Termux)",
+      "platform": "termux",
+      "arch": "arm64",
+      "enabled": true
+    },
+    {
+      "device_id": "git",
+      "device_name": "Old Phone (32-bit Termux)",
+      "platform": "termux",
+      "arch": "arm32",
+      "enabled": true
+    }
+  ],
+  "sync_settings": {
+    "auto_sync_interval_hours": 1,
+    "sync_on_startup": true,
+    "share_decisions": true,
+    "share_ratings": true,
+    "share_patterns": true
+  }
+}

@@ -18,6 +18,7 @@ from .memory import Memory
 from .reasoning import Reasoning
 from .metrics import Metrics
 from .sync import MemorySync
+from .device_registry import DeviceRegistry
 from ..communication.email_handler import EmailHandler
 from ..monitoring.monitor import SystemMonitor
 
@@ -49,6 +50,7 @@ class AutonomousAgent:
         self.monitor = SystemMonitor()
         self.metrics = Metrics(str(self.storage_dir / "memory.db"))
         self.sync = MemorySync(str(self.storage_dir / "memory.db"), device_name=name)
+        self.device_registry = DeviceRegistry(str(self.storage_dir / "memory.db"))
 
         # State
         self.running = False
@@ -69,6 +71,16 @@ class AutonomousAgent:
         # Create databases
         self.memory.initialize()
         self.metrics.initialize()
+        self.device_registry.initialize()
+
+        # Register this device in the network
+        self.device_registry.register_device(
+            device_id=self.name,
+            device_name=self.name,
+            platform=sys.platform,
+            arch="arm64",
+            memory_path=str(self.storage_dir / "memory.db")
+        )
 
         # Test CLI connection
         try:
