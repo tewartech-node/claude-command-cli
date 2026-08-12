@@ -14,6 +14,8 @@ export default [
         fetch: "readonly",
         Response: "readonly",
         Request: "readonly",
+        Headers: "readonly",
+        ReadableStream: "readonly",
         URL: "readonly",
         TextEncoder: "readonly",
         TextDecoder: "readonly",
