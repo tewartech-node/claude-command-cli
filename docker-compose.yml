@@ -1,0 +1,121 @@
+version: '3.8'
+
+services:
+  # Central Brain (coordinator)
+  brain-coordinator:
+    build:
+      context: .
+      dockerfile: Dockerfile.brain
+    container_name: brain-coordinator
+    environment:
+      - BRAIN_NAME=coordinator
+      - BRAIN_ROLE=coordinator
+      - DEVICE_ID=coordinator-main
+      - GROQ_API_KEY=${GROQ_API_KEY}
+      - GMAIL_USER=${GMAIL_USER}
+      - GMAIL_PASSWORD=${GMAIL_PASSWORD}
+      - GMAIL_APP_PASSWORD=${GMAIL_APP_PASSWORD}
+    volumes:
+      - brain-coordinator-storage:/app/agent/storage
+      - ./agent:/app/agent
+    ports:
+      - "8000:8000"
+    networks:
+      - brain-network
+    command: python -m agent.core.agent
+    restart: unless-stopped
+
+  # Email Monitor
+  email-monitor:
+    build:
+      context: .
+      dockerfile: Dockerfile.monitor
+    container_name: email-monitor
+    environment:
+      - GMAIL_USER=${GMAIL_USER}
+      - GMAIL_PASSWORD=${GMAIL_PASSWORD}
+      - GMAIL_APP_PASSWORD=${GMAIL_APP_PASSWORD}
+      - MONITOR_INTERVAL=300
+    volumes:
+      - brain-coordinator-storage:/app/agent/storage
+      - ./agent:/app/agent
+    networks:
+      - brain-network
+    depends_on:
+      - brain-coordinator
+    command: python agent/monitoring/email_monitor.py
+    restart: unless-stopped
+
+  # Web Traffic Monitor
+  traffic-monitor:
+    build:
+      context: .
+      dockerfile: Dockerfile.monitor
+    container_name: traffic-monitor
+    environment:
+      - MONITOR_INTERVAL=60
+    volumes:
+      - brain-coordinator-storage:/app/agent/storage
+      - ./agent:/app/agent
+    networks:
+      - brain-network
+    depends_on:
+      - brain-coordinator
+    command: python agent/monitoring/traffic_monitor.py
+    restart: unless-stopped
+    privileged: true
+
+  # Central Dashboard
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile.dashboard
+    container_name: brain-dashboard
+    environment:
+      - BRAIN_COORDINATOR_URL=http://brain-coordinator:8000
+    volumes:
+      - brain-coordinator-storage:/app/agent/storage
+    ports:
+      - "3000:3000"
+    networks:
+      - brain-network
+    depends_on:
+      - brain-coordinator
+    restart: unless-stopped
+
+  # Redis Cache (for network coordination)
+  redis:
+    image: redis:7-alpine
+    container_name: brain-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-storage:/data
+    networks:
+      - brain-network
+    restart: unless-stopped
+
+  # PostgreSQL (for metrics)
+  postgres:
+    image: postgres:15-alpine
+    container_name: brain-postgres
+    environment:
+      - POSTGRES_DB=brain_metrics
+      - POSTGRES_USER=brain
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-brainpass123}
+    volumes:
+      - postgres-storage:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - brain-network
+    restart: unless-stopped
+
+volumes:
+  brain-coordinator-storage:
+  redis-storage:
+  postgres-storage:
+
+networks:
+  brain-network:
+    driver: bridge
