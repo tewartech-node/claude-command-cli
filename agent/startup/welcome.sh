@@ -34,29 +34,22 @@ fi
 cat << 'EOF'
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🚀 QUICK COMMANDS
+🚀 QUICK REFERENCE (type these manually)
 
-  Start Brain:
-    ./agent/start_brain.sh 0.0
+  [1] View Brain Thoughts
+  [2] Check Decisions
+  [3] Stop Brain
+  [4] View Log File
+  [5] Help Menu
 
-  View Brain Thoughts:
-    tail -f agent/storage/brain.log
-
-  Check Decisions:
-    sqlite3 agent/storage/memory.db "SELECT * FROM decisions LIMIT 5"
-
-  Stop Brain:
-    pkill -f agent.core.agent
-
-  Push to GitHub:
-    git add . && git commit -m "message" && git push
+Type the number or see QUICK_START.txt for full commands.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📚 DOCUMENTATION
+📚 DOCUMENTATION (read these with cat)
 
-  Setup Guide:         cat QUICK_START.txt
-  Full Guide:          cat TERMUX_SETUP.md
-  Architecture:        cat CLAUDE.md
+  QUICK_START.txt      ← Setup & basic commands
+  TERMUX_SETUP.md      ← Full Termux guide
+  CLAUDE.md            ← Architecture & principles
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
