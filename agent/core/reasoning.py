@@ -82,13 +82,34 @@ class Reasoning:
 
         return options
 
-    def choose_best(self, options: list) -> dict:
-        """Choose best option from safe options"""
+    def choose_best(self, options: list, memory=None) -> dict:
+        """Choose best option from safe options, factoring in historical confidence"""
         if not options:
             return {"name": "observe", "command": "status"}
 
-        # Sort by priority (lower is higher priority)
-        sorted_options = sorted(options, key=lambda x: x.get("priority", 999))
+        # Score each option: priority + confidence boost
+        scored_options = []
+        for option in options:
+            score = option.get("priority", 999)
 
-        # Return highest priority
-        return sorted_options[0]
+            # Factor in historical confidence if memory available
+            if memory:
+                confidence = memory.get_confidence(option.get("name", ""))
+                # Adjust score: lower priority is better, confidence boost is better
+                # confidence 0.9 = 0.1 penalty reduction, confidence 0.5 = 0.5 penalty reduction
+                score = score * (1.0 - (confidence * 0.3))
+
+            scored_options.append({
+                "option": option,
+                "score": score,
+                "confidence": memory.get_confidence(option.get("name", "")) if memory else 0.5
+            })
+
+        # Sort by score (lower is better)
+        sorted_options = sorted(scored_options, key=lambda x: x["score"])
+
+        # Attach confidence to chosen option for logging
+        best = sorted_options[0]["option"]
+        best["confidence_score"] = sorted_options[0]["confidence"]
+
+        return best

@@ -72,6 +72,18 @@ class Memory:
             )
         """)
 
+        # Ratings table (user feedback on decisions)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS ratings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                decision_id INTEGER,
+                rating INTEGER,
+                feedback TEXT,
+                rated_at DATETIME,
+                FOREIGN KEY(decision_id) REFERENCES decisions(id)
+            )
+        """)
+
         conn.commit()
         conn.close()
         print("✅ Memory initialized")
@@ -204,3 +216,112 @@ class Memory:
 
         conn.commit()
         conn.close()
+
+    def rate_decision(self, decision_id: int, rating: int, feedback: str = ""):
+        """Rate a decision (1-5 scale)"""
+        if not 1 <= rating <= 5:
+            return False
+
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            INSERT INTO ratings (decision_id, rating, feedback, rated_at)
+            VALUES (?, ?, ?, ?)
+        """, (decision_id, rating, feedback, datetime.now().isoformat()))
+
+        conn.commit()
+        conn.close()
+        return True
+
+    def get_unrated_decisions(self, limit: int = 10) -> list:
+        """Get decisions waiting for user feedback"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT d.id, d.decision_name, d.decision_data, d.timestamp
+            FROM decisions d
+            LEFT JOIN ratings r ON d.id = r.decision_id
+            WHERE r.id IS NULL
+            ORDER BY d.timestamp DESC
+            LIMIT ?
+        """, (limit,))
+
+        results = []
+        for row in cursor.fetchall():
+            results.append({
+                "id": row[0],
+                "name": row[1],
+                "decision": json.loads(row[2]) if row[2] else {},
+                "timestamp": row[3]
+            })
+
+        conn.close()
+        return results
+
+    def extract_patterns(self) -> list:
+        """Find patterns in rated decisions"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        # Get decisions with ratings
+        cursor.execute("""
+            SELECT d.decision_name, d.decision_data, r.rating
+            FROM decisions d
+            JOIN ratings r ON d.id = r.decision_id
+            ORDER BY d.timestamp DESC
+            LIMIT 100
+        """)
+
+        decisions = cursor.fetchall()
+        conn.close()
+
+        if not decisions:
+            return []
+
+        # Group by decision name, calculate success rate
+        patterns = {}
+        for name, data, rating in decisions:
+            if name not in patterns:
+                patterns[name] = {"total": 0, "good": 0, "ratings": []}
+
+            patterns[name]["total"] += 1
+            patterns[name]["ratings"].append(rating)
+            if rating >= 4:
+                patterns[name]["good"] += 1
+
+        # Convert to pattern list
+        result = []
+        for name, stats in sorted(patterns.items(), key=lambda x: x[1]["good"] / max(x[1]["total"], 1), reverse=True):
+            success_rate = stats["good"] / max(stats["total"], 1)
+            result.append({
+                "name": name,
+                "success_rate": success_rate,
+                "total_uses": stats["total"],
+                "good_uses": stats["good"],
+                "avg_rating": sum(stats["ratings"]) / len(stats["ratings"])
+            })
+
+        return result
+
+    def get_confidence(self, decision_name: str) -> float:
+        """Get confidence level for a decision type (0-1)"""
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT COUNT(*) as total, SUM(CASE WHEN rating >= 4 THEN 1 ELSE 0 END) as good
+            FROM ratings r
+            JOIN decisions d ON r.decision_id = d.id
+            WHERE d.decision_name = ?
+        """, (decision_name,))
+
+        result = cursor.fetchone()
+        conn.close()
+
+        if not result or result[0] == 0:
+            return 0.5  # Default neutral confidence
+
+        total, good = result
+        return min(1.0, good / max(total, 1))

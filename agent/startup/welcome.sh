@@ -45,7 +45,8 @@ show_menu() {
   (4) Stop Brain
   (5) View Full Log
   (6) Brain Status
-  (7) Help / Documentation
+  (7) Rate a Decision
+  (8) Help / Documentation
   (0) Exit
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -53,6 +54,71 @@ show_menu() {
 Your AI is thinking. Welcome to your future. 🚀
 
 EOF
+}
+
+rate_decision() {
+    echo ""
+    echo "⭐ RATE A DECISION"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+    # Get unrated decisions
+    UNRATED=$(sqlite3 agent/storage/memory.db "
+        SELECT d.id, d.decision_name, d.timestamp
+        FROM decisions d
+        LEFT JOIN ratings r ON d.id = r.decision_id
+        WHERE r.id IS NULL
+        ORDER BY d.timestamp DESC
+        LIMIT 1
+    " 2>/dev/null)
+
+    if [ -z "$UNRATED" ]; then
+        echo "✅ All decisions have been rated!"
+        read -p "Press Enter to continue..."
+        return
+    fi
+
+    # Parse the unrated decision
+    ID=$(echo "$UNRATED" | cut -d'|' -f1)
+    NAME=$(echo "$UNRATED" | cut -d'|' -f2)
+    TIMESTAMP=$(echo "$UNRATED" | cut -d'|' -f3)
+
+    echo "Decision: $NAME"
+    echo "Made at: $TIMESTAMP"
+    echo ""
+    echo "Rate this decision (1-5):"
+    echo "  1 = Poor (bad outcome)"
+    echo "  2 = Below Average"
+    echo "  3 = Average"
+    echo "  4 = Good (positive)"
+    echo "  5 = Excellent (very positive)"
+    echo ""
+    read -p "Your rating (1-5): " rating
+
+    # Validate rating
+    if ! [[ "$rating" =~ ^[1-5]$ ]]; then
+        echo "❌ Invalid rating. Must be 1-5."
+        read -p "Press Enter to continue..."
+        return
+    fi
+
+    # Optional feedback
+    read -p "Brief feedback (optional, press Enter to skip): " feedback
+
+    # Store rating in database
+    if [ -z "$feedback" ]; then
+        sqlite3 agent/storage/memory.db "
+            INSERT INTO ratings (decision_id, rating, feedback, rated_at)
+            VALUES ($ID, $rating, '', datetime('now'))
+        " 2>/dev/null
+    else
+        sqlite3 agent/storage/memory.db "
+            INSERT INTO ratings (decision_id, rating, feedback, rated_at)
+            VALUES ($ID, $rating, '$feedback', datetime('now'))
+        " 2>/dev/null
+    fi
+
+    echo "✅ Rating saved!"
+    read -p "Press Enter to continue..."
 }
 
 execute_command() {
@@ -92,6 +158,9 @@ execute_command() {
             read -p "Press Enter to continue..."
             ;;
         7)
+            rate_decision
+            ;;
+        8)
             clear
             echo "📚 DOCUMENTATION"
             echo ""
@@ -116,6 +185,6 @@ execute_command() {
 while true; do
     show_status
     show_menu
-    read -p "Select [0-7]: " choice
+    read -p "Select [0-8]: " choice
     execute_command "$choice"
 done

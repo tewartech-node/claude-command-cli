@@ -142,7 +142,7 @@ class AutonomousAgent:
 
         # Step 5: Choose best option
         if safe_options:
-            best_option = self.reasoning.choose_best(safe_options)
+            best_option = self.reasoning.choose_best(safe_options, self.memory)
 
             # Step 6: Execute
             result = await self.cli.execute_command(
