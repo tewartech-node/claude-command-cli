@@ -1,121 +1,63 @@
 version: '3.8'
 
 services:
-  # Central Brain (coordinator)
-  brain-coordinator:
-    build:
-      context: .
-      dockerfile: Dockerfile.brain
-    container_name: brain-coordinator
-    environment:
-      - BRAIN_NAME=coordinator
-      - BRAIN_ROLE=coordinator
-      - DEVICE_ID=coordinator-main
-      - GROQ_API_KEY=${GROQ_API_KEY}
-      - GMAIL_USER=${GMAIL_USER}
-      - GMAIL_PASSWORD=${GMAIL_PASSWORD}
-      - GMAIL_APP_PASSWORD=${GMAIL_APP_PASSWORD}
-    volumes:
-      - brain-coordinator-storage:/app/agent/storage
-      - ./agent:/app/agent
+  # Lightweight LLM Container (Ollama)
+  tiny-llm:
+    image: ollama/ollama:latest
+    container_name: tiny-llm-service
     ports:
-      - "8000:8000"
-    networks:
-      - brain-network
-    command: python -m agent.core.agent
+      - "11434:11434"
+    volumes:
+      - llm_models:/root/.ollama/models
+    environment:
+      - OLLAMA_HOST=0.0.0.0:11434
+      - OLLAMA_KEEP_ALIVE=5m
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 4G
+        reservations:
+          cpus: '1'
+          memory: 2G
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - llm-network
 
-  # Email Monitor
-  email-monitor:
+  # API Gateway (Optional: FastAPI wrapper for easier integration)
+  llm-api-gateway:
     build:
       context: .
-      dockerfile: Dockerfile.monitor
-    container_name: email-monitor
+      dockerfile: Dockerfile.api
+    container_name: llm-api-gateway
+    ports:
+      - "5000:5000"
     environment:
-      - GMAIL_USER=${GMAIL_USER}
-      - GMAIL_PASSWORD=${GMAIL_PASSWORD}
-      - GMAIL_APP_PASSWORD=${GMAIL_APP_PASSWORD}
-      - MONITOR_INTERVAL=300
-    volumes:
-      - brain-coordinator-storage:/app/agent/storage
-      - ./agent:/app/agent
-    networks:
-      - brain-network
+      - OLLAMA_HOST=http://tiny-llm:11434
+      - API_PORT=5000
+      - LOG_LEVEL=info
     depends_on:
-      - brain-coordinator
-    command: python agent/monitoring/email_monitor.py
+      tiny-llm:
+        condition: service_healthy
     restart: unless-stopped
-
-  # Web Traffic Monitor
-  traffic-monitor:
-    build:
-      context: .
-      dockerfile: Dockerfile.monitor
-    container_name: traffic-monitor
-    environment:
-      - MONITOR_INTERVAL=60
-    volumes:
-      - brain-coordinator-storage:/app/agent/storage
-      - ./agent:/app/agent
     networks:
-      - brain-network
-    depends_on:
-      - brain-coordinator
-    command: python agent/monitoring/traffic_monitor.py
-    restart: unless-stopped
-    privileged: true
-
-  # Central Dashboard
-  dashboard:
-    build:
-      context: .
-      dockerfile: Dockerfile.dashboard
-    container_name: brain-dashboard
-    environment:
-      - BRAIN_COORDINATOR_URL=http://brain-coordinator:8000
-    volumes:
-      - brain-coordinator-storage:/app/agent/storage
-    ports:
-      - "3000:3000"
-    networks:
-      - brain-network
-    depends_on:
-      - brain-coordinator
-    restart: unless-stopped
-
-  # Redis Cache (for network coordination)
-  redis:
-    image: redis:7-alpine
-    container_name: brain-redis
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis-storage:/data
-    networks:
-      - brain-network
-    restart: unless-stopped
-
-  # PostgreSQL (for metrics)
-  postgres:
-    image: postgres:15-alpine
-    container_name: brain-postgres
-    environment:
-      - POSTGRES_DB=brain_metrics
-      - POSTGRES_USER=brain
-      - POSTGRES_PASSWORD=${DB_PASSWORD:-brainpass123}
-    volumes:
-      - postgres-storage:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-    networks:
-      - brain-network
-    restart: unless-stopped
+      - llm-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
 volumes:
-  brain-coordinator-storage:
-  redis-storage:
-  postgres-storage:
+  llm_models:
+    driver: local
 
 networks:
-  brain-network:
+  llm-network:
     driver: bridge
