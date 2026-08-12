@@ -46,7 +46,9 @@ show_menu() {
   (5) View Full Log
   (6) Brain Status
   (7) Rate a Decision
-  (8) Help / Documentation
+  (8) View Analytics
+  (9) Sync Status
+  (10) Help / Documentation
   (0) Exit
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -54,6 +56,75 @@ show_menu() {
 Your AI is thinking. Welcome to your future. 🚀
 
 EOF
+}
+
+show_analytics() {
+    echo ""
+    echo "📊 BRAIN ANALYTICS"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+    # Overall stats
+    echo ""
+    echo "Overall Performance:"
+    sqlite3 agent/storage/memory.db "
+        SELECT
+            COUNT(*) as total_decisions,
+            SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) as successful,
+            ROUND(SUM(CASE WHEN success = 1 THEN 1 ELSE 0 END) * 100.0 / COUNT(*), 1) as success_rate
+        FROM decisions
+    " 2>/dev/null | awk -F'|' '{print "  Total Decisions: " $1; print "  Successful: " $2; print "  Success Rate: " $3 "%"}'
+
+    # Top performing decisions
+    echo ""
+    echo "Top Performing Decision Types:"
+    sqlite3 agent/storage/memory.db "
+        SELECT
+            d.decision_name,
+            COUNT(*) as uses,
+            ROUND(AVG(CASE WHEN r.rating IS NOT NULL THEN r.rating ELSE 0 END), 1) as avg_rating
+        FROM decisions d
+        LEFT JOIN ratings r ON d.id = r.decision_id
+        GROUP BY d.decision_name
+        ORDER BY avg_rating DESC
+        LIMIT 5
+    " 2>/dev/null | while IFS='|' read name uses rating; do
+        echo "  • $name (used $uses times, avg rating: $rating/5)"
+    done
+
+    # Feedback coverage
+    echo ""
+    echo "Feedback Coverage:"
+    sqlite3 agent/storage/memory.db "
+        SELECT
+            COUNT(*) as total,
+            COUNT(DISTINCT decision_id) as rated
+        FROM decisions d
+        LEFT JOIN ratings r ON d.id = r.decision_id
+    " 2>/dev/null | awk -F'|' '{rated=$2; total=$1; pct=(rated*100/total); print "  Rated Decisions: " rated "/" total " (" int(pct) "%)"}'
+
+    read -p "Press Enter to continue..."
+}
+
+show_sync_status() {
+    echo ""
+    echo "🔄 SYNC STATUS"
+    echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+    echo ""
+    echo "Local Database:"
+    sqlite3 agent/storage/memory.db "
+        SELECT
+            COUNT(*) as decisions,
+            (SELECT COUNT(*) FROM ratings) as ratings,
+            (SELECT COUNT(*) FROM patterns) as patterns
+        FROM decisions
+    " 2>/dev/null | awk -F'|' '{print "  Decisions: " $1; print "  Ratings: " $2; print "  Patterns: " $3}'
+
+    echo ""
+    echo "Export available for sync:"
+    echo "  Run: python -c \"from agent.core.sync import MemorySync; s = MemorySync('agent/storage/memory.db', '$(uname -n)'); print('Decisions:', len(s.export_decisions())); print('Ratings:', len(s.export_ratings())); print('Patterns:', len(s.export_patterns()))\""
+
+    read -p "Press Enter to continue..."
 }
 
 rate_decision() {
@@ -161,6 +232,12 @@ execute_command() {
             rate_decision
             ;;
         8)
+            show_analytics
+            ;;
+        9)
+            show_sync_status
+            ;;
+        10)
             clear
             echo "📚 DOCUMENTATION"
             echo ""
@@ -185,6 +262,6 @@ execute_command() {
 while true; do
     show_status
     show_menu
-    read -p "Select [0-8]: " choice
+    read -p "Select [0-10]: " choice
     execute_command "$choice"
 done

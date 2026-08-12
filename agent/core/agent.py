@@ -16,6 +16,8 @@ from ..executor.cli_executor import CLIExecutor
 from .safety import SafetyRules
 from .memory import Memory
 from .reasoning import Reasoning
+from .metrics import Metrics
+from .sync import MemorySync
 from ..communication.email_handler import EmailHandler
 from ..monitoring.monitor import SystemMonitor
 
@@ -45,6 +47,8 @@ class AutonomousAgent:
         self.memory = Memory(str(self.storage_dir / "memory.db"))
         self.reasoning = Reasoning()
         self.monitor = SystemMonitor()
+        self.metrics = Metrics(str(self.storage_dir / "memory.db"))
+        self.sync = MemorySync(str(self.storage_dir / "memory.db"), device_name=name)
 
         # State
         self.running = False
@@ -64,6 +68,7 @@ class AutonomousAgent:
 
         # Create databases
         self.memory.initialize()
+        self.metrics.initialize()
 
         # Test CLI connection
         try:
