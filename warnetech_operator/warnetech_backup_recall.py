@@ -107,8 +107,16 @@ def _resolve_backup(backup_name: str) -> Path:
 def create_backup(targets: Optional[list[Path]] = None) -> Path:
     """Copy each target into a timestamped backup with a manifest."""
     ts = int(time.time())
+    # Second-resolution timestamps collide when two backups are taken in the
+    # same second: the later one would land in the earlier one's directory and
+    # overwrite same-named items, losing the very data the backup preserves.
+    # Suffix until the name is free.
     backup_path = BACKUP_DIR / f"backup_{ts}"
-    backup_path.mkdir(parents=True, exist_ok=True)
+    collision = 1
+    while backup_path.exists():
+        backup_path = BACKUP_DIR / f"backup_{ts}_{collision}"
+        collision += 1
+    backup_path.mkdir(parents=True)
 
     manifest = {"created_at": ts, "items": []}
 

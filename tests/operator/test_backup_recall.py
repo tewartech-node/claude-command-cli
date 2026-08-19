@@ -211,3 +211,20 @@ def test_cli_recall_dry_run_needs_no_confirmation(runtime, capsys):
     name = br.create_backup(runtime["targets"]).name
     assert br.main(["recall", name, "--dry-run"]) == 0
     assert "planned" in capsys.readouterr().out
+
+
+# -- name collisions ---------------------------------------------------------
+
+
+def test_backups_in_the_same_second_do_not_collide(runtime):
+    """Backup names are second-resolution timestamps. Two backups taken in
+    the same second must not share a directory: the later one would
+    overwrite same-named items in the earlier one, destroying the data the
+    backup exists to preserve.
+    """
+    first = br.create_backup(runtime["targets"])
+    second = br.create_backup(runtime["targets"])
+
+    assert first != second
+    assert br.verify_backup(first.name)["all_ok"] is True
+    assert br.verify_backup(second.name)["all_ok"] is True
