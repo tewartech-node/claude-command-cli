@@ -33,12 +33,18 @@ packages = [
 ]
 
 [project.scripts]
+# The canonical CLI. Previously reachable only via `python -m
+# warnetech_cli.main` -- it had no console script of its own.
+warnetech = "warnetech_cli.main:main"
 # Parameter-free preflight + failure ledger. Stdlib only, so this works on a
 # Termux install with no network and no build toolchain.
 warnetech-curriculum = "warnetech_curriculum.cli:main"
 # Local backup/recall, plus an optional client-side-encrypted S3 offsite
 # tier (see the `s3` extra and docs/11_BACKUP_AND_RECOVERY.md).
 warnetech-backup-recall = "warnetech_operator.warnetech_backup_recall:main"
+# Environment self-check: is this machine set up to run the CLI at all.
+# Stdlib only, run this first on a fresh Termux install.
+warnetech-doctor = "warnetech_cli.doctor:main"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

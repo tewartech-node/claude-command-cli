@@ -30,6 +30,30 @@ SEVERITY_ORDER = {CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3}
 
 
 @dataclass(frozen=True)
+class TextEdit:
+    """A single, exact, verifiable source-text substitution.
+
+    Positions are 1-indexed lines and 0-indexed columns, matching Python's
+    ast module, so a span can be sliced directly out of `str.splitlines()`
+    output with no off-by-one translation at the call site.
+
+    `original` is not decoration: apply_fixes() re-checks it against the
+    live file immediately before writing, and refuses to apply the edit if
+    the text there has since changed. A fix computed from a stale read is
+    exactly the kind of guess this whole package exists to refuse to make.
+    """
+
+    path: str
+    line: int
+    col: int
+    end_line: int
+    end_col: int
+    original: str
+    replacement: str
+    description: str
+
+
+@dataclass(frozen=True)
 class Finding:
     rule: str
     severity: str
@@ -37,6 +61,7 @@ class Finding:
     line: int
     message: str
     evidence: str = ""
+    fix: Optional[TextEdit] = None
 
     def to_dict(self) -> Dict[str, object]:
         return {
@@ -46,10 +71,12 @@ class Finding:
             "line": self.line,
             "message": self.message,
             "evidence": self.evidence,
+            "fixable": self.fix is not None,
         }
 
     def render(self) -> str:
-        return f"{self.path}:{self.line}: [{self.severity}] {self.rule} {self.message}"
+        marker = " [fixable]" if self.fix is not None else ""
+        return f"{self.path}:{self.line}: [{self.severity}] {self.rule} {self.message}{marker}"
 
 
 @dataclass
@@ -141,14 +168,61 @@ def check_unresolved_import(ctx: RuleContext) -> List[Finding]:
             if exported is False:
                 near = _nearest(symbol, surface.names)
                 hint = f"; did you mean '{near}'?" if near else ""
+                confident = _confident_nearest(symbol, surface.names)
+                fix = _import_rename_fix(path, ctx.relative(path), symbol, line, confident) if confident else None
                 findings.append(
                     Finding(
                         "R001", CRITICAL, ctx.relative(path), line,
                         f"imports '{symbol}' from '{module}', which does not export it{hint}",
                         evidence=f"{module} exports: {', '.join(sorted(surface.names)[:12])}",
+                        fix=fix,
                     )
                 )
     return findings
+
+
+def _import_rename_fix(
+    path: Path, relative_path: str, wrong_name: str, line: int, correct_name: str
+) -> Optional["TextEdit"]:
+    """Locates the exact source span of `wrong_name` inside a `from ... import`
+    statement on `line`, and proposes replacing it with `correct_name`.
+
+    `imports_in()` reports (module, symbol, lineno) but not a column -- it
+    is built for resolution, not editing -- so this re-walks the same file
+    to find the one `ast.alias` node the finding came from. `alias.name`'s
+    own span covers only the imported name, never a trailing `as other`
+    (verified: `from x import unseal as u` gives the alias node the span
+    of `unseal as u`, but `col_offset` to `col_offset + len(name)` isolates
+    just `unseal`), so renaming here can never touch the local alias.
+    """
+    try:
+        source = path.read_text(encoding="utf-8")
+    except OSError:
+        return None
+    tree = ast.parse(source, filename=str(path))
+    for node in ast.walk(tree):
+        if not (isinstance(node, ast.ImportFrom) and node.lineno == line):
+            continue
+        for alias in node.names:
+            if alias.name != wrong_name:
+                continue
+            lines = source.splitlines()
+            if not (1 <= alias.lineno <= len(lines)):
+                return None
+            end_col = alias.col_offset + len(wrong_name)
+            actual = lines[alias.lineno - 1][alias.col_offset:end_col]
+            if actual != wrong_name:
+                # The static assumption about the alias span didn't hold
+                # for this line (unexpected formatting). Report the finding
+                # without a fix rather than risk mis-editing it.
+                return None
+            return TextEdit(
+                path=relative_path, line=alias.lineno, col=alias.col_offset,
+                end_line=alias.lineno, end_col=end_col,
+                original=wrong_name, replacement=correct_name,
+                description=f"rename imported '{wrong_name}' to '{correct_name}'",
+            )
+    return None
 
 
 def _nearest(name: str, candidates: Set[str]) -> Optional[str]:
@@ -157,6 +231,43 @@ def _nearest(name: str, candidates: Set[str]) -> Optional[str]:
 
     matches = difflib.get_close_matches(name, sorted(candidates), n=1, cutoff=0.6)
     return matches[0] if matches else None
+
+
+def _confident_nearest(
+    name: str, candidates: Set[str], threshold: float = 0.85, margin: float = 0.10
+) -> Optional[str]:
+    """A stricter cousin of `_nearest`, for deciding whether to *auto-apply*
+    a rename rather than merely suggest one in a message.
+
+    Two guards beyond the display hint's loose 0.6 cutoff:
+
+      * `threshold` -- the top match must itself be a strong match, not
+        merely the best of a weak field.
+      * `margin` -- the top match must clearly beat the runner-up. Two
+        candidates close in score means the tool cannot actually tell which
+        one was meant, and picking one anyway is a guess wearing a
+        confident font.
+
+    Returns None on any ambiguity. A missed auto-fix still gets reported
+    with the loose hint from `_nearest`; a wrong one silently corrupts a
+    file, so this errs toward doing nothing.
+    """
+    import difflib
+
+    ranked = sorted(candidates)
+    if not ranked:
+        return None
+    scored = sorted(
+        ((difflib.SequenceMatcher(None, name, c).ratio(), c) for c in ranked),
+        key=lambda pair: pair[0],
+        reverse=True,
+    )
+    top_score, top_name = scored[0]
+    if top_score < threshold:
+        return None
+    if len(scored) > 1 and (top_score - scored[1][0]) < margin:
+        return None
+    return top_name
 
 
 # -- R002 ---------------------------------------------------------------------
@@ -201,6 +312,8 @@ def check_unknown_attribute(ctx: RuleContext) -> List[Finding]:
                     if surface.exists and surface.has(node.attr) is False:
                         near = _nearest(node.attr, surface.attributes)
                         hint = f"; did you mean '{near}'?" if near else ""
+                        confident = _confident_nearest(node.attr, surface.attributes)
+                        fix = _attribute_rename_fix(path, ctx.relative(path), node, confident) if confident else None
                         findings.append(
                             Finding(
                                 "R002", CRITICAL, ctx.relative(path), node.lineno,
@@ -209,9 +322,43 @@ def check_unknown_attribute(ctx: RuleContext) -> List[Finding]:
                                     f"{class_name} provides: "
                                     f"{', '.join(sorted(a for a in surface.attributes if not a.startswith('_'))[:12])}"
                                 ),
+                                fix=fix,
                             )
                         )
     return findings
+
+
+def _attribute_rename_fix(
+    path: Path, relative_path: str, node: "ast.Attribute", correct_name: str
+) -> Optional["TextEdit"]:
+    """Locates the exact source span of an ast.Attribute node's `.attr`
+    name and proposes replacing it with `correct_name`.
+
+    An Attribute node's own span covers the whole `value.attr` expression
+    (e.g. `e.reconstruct` for `e.reconstruct()`), with no separate field
+    for just the attribute name -- so it is computed as the last
+    len(node.attr) characters of that span, and verified against the live
+    source before being trusted: `x . foo` (a space before the dot) is
+    legal Python that would break this assumption, however rare.
+    """
+    try:
+        source = path.read_text(encoding="utf-8")
+    except OSError:
+        return None
+    lines = source.splitlines()
+    if not (1 <= node.end_lineno <= len(lines)):
+        return None
+    end_col = node.end_col_offset
+    start_col = end_col - len(node.attr)
+    actual = lines[node.end_lineno - 1][start_col:end_col]
+    if actual != node.attr:
+        return None
+    return TextEdit(
+        path=relative_path, line=node.end_lineno, col=start_col,
+        end_line=node.end_lineno, end_col=end_col,
+        original=node.attr, replacement=correct_name,
+        description=f"rename attribute '.{node.attr}' to '.{correct_name}'",
+    )
 
 
 # -- R003 ---------------------------------------------------------------------

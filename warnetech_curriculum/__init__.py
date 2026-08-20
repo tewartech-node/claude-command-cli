@@ -31,10 +31,11 @@ point, because Termux is where this runs.
 
 from __future__ import annotations
 
+from .autofix import apply_fixes
 from .inspector import ClassSurface, Inspector, ModuleSurface
 from .ledger import Ledger, LedgerEntry, LedgerIntegrityError, default_ledger_path, writable_ledger
 from .preflight import preflight
-from .rules import RULES, RULES_BY_ID, Finding, Rule, run_rules
+from .rules import RULES, RULES_BY_ID, Finding, Rule, TextEdit, run_rules
 from .seed import OPEN_LESSONS, seed
 
 __all__ = [
@@ -51,7 +52,9 @@ __all__ = [
     "RULES_BY_ID",
     "Rule",
     "Finding",
+    "TextEdit",
     "run_rules",
+    "apply_fixes",
     "seed",
     "OPEN_LESSONS",
 ]

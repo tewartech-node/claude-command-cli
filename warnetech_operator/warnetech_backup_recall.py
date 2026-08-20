@@ -367,7 +367,7 @@ def _prompt_passphrase(confirm: bool) -> str:
 # -- CLI --------------------------------------------------------------------
 
 
-def main(argv: Optional[list[str]] = None) -> int:
+def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="warnetech-backup-recall")
     sub = parser.add_subparsers(dest="command", required=True)
 
@@ -396,6 +396,11 @@ def main(argv: Optional[list[str]] = None) -> int:
     pull.add_argument("--bucket", required=True)
     pull.add_argument("--region", default=None)
 
+    return parser
+
+
+def main(argv: Optional[list[str]] = None) -> int:
+    parser = build_parser()
     args = parser.parse_args(argv)
 
     if args.command == "backup":

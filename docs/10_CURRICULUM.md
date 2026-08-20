@@ -64,6 +64,7 @@ action — which is exactly when it needs to run.
 ```bash
 warnetech-curriculum curriculum   # what has been learned, enforced and open
 warnetech-curriculum check        # verify the whole tree
+warnetech-curriculum check --fix  # apply high-confidence renames, then verify
 warnetech-curriculum preflight    # gate: only what changed against HEAD
 warnetech-curriculum learn "..."  # record a new failure, permanently
 warnetech-curriculum resolve ID   # supersede an entry (original is kept)
@@ -76,6 +77,37 @@ Exit codes: `0` clean, `1` blocking findings, `2` usage error or a broken chain.
 
 `python -m warnetech_curriculum <command>` works identically, for a Termux
 install without the console script on `PATH`.
+
+### `--fix`: auto-correct, narrowly
+
+`check --fix` applies renames for R001 and R002 findings, but only when
+exactly one candidate is both a strong match (edit-distance ratio ≥ 0.85)
+and clearly beats the runner-up (margin ≥ 0.10) — see
+`rules._confident_nearest`. That is deliberately a much stricter bar than
+the "did you mean 'X'?" hint every finding already shows, which uses a
+loose 0.6 cutoff purely for display.
+
+The distinction is not cosmetic. Auto-fix corrects **typos** — `reconstrukt`
+for `reconstruct`, one keystroke off a real name. It cannot and does not
+correct **wrong assumptions about a module's shape** — the actual bug that
+motivated this whole package, `from warnetech_envelope import open` where
+the module exports `unseal`, is *not* a typo (edit-distance ratio ≈ 0.2) and
+`--fix` correctly leaves it exactly as reported, for a human to read and
+decide. Guessing "you probably meant unseal" would be the same category of
+mistake the curriculum exists to eliminate, just automated.
+
+Applying a fix goes through two independent checks before anything is
+written: the proposed edit's original text is re-verified against the file
+on disk (not just at detection time — a stale offset is refused, never
+forced), and the whole file is re-parsed after every edit in it lands,
+before the write happens. A result that would leave the file unparseable is
+never written; the failure is reported instead. See `warnetech_curriculum/
+autofix.py`.
+
+`--fix` is available on `check`, not on `preflight` or the pre-commit hook
+— those run silently as a gate, and a gate that starts rewriting files out
+from under a commit in progress is a surprise, not a convenience. Run
+`check --fix` yourself, review the diff, then commit.
 
 ---
 

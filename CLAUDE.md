@@ -65,6 +65,15 @@ not a second crypto implementation. Full detail, including exactly what the
 encryption does and does not protect against, in
 `docs/11_BACKUP_AND_RECOVERY.md`.
 
+**Interface**: four console scripts — `warnetech`, `warnetech-curriculum`,
+`warnetech-backup-recall`, `warnetech-doctor` — installed by `pip install -e
+.`. Run `warnetech-doctor` first on a new machine (Termux especially:
+`cryptography` needs `rust`+`binutils` on PATH to build there, and doctor
+names that fix directly rather than surfacing it as a raw traceback).
+`warnetech-curriculum check --fix` auto-corrects high-confidence typos
+(never API-shape guesses — see `docs/10_CURRICULUM.md`). Full detail in
+`docs/12_TERMUX_INTERFACE.md`.
+
 `worker/` and `warnetech_cli_legacy/` are **legacy test harness**. They
 still build and their tests still pass, so they are kept for regression
 coverage of the wire format, but:

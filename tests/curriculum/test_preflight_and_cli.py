@@ -339,3 +339,50 @@ def test_log_timeline_shows_a_failure_and_its_resolution(home, capsys):
     main(["log", "--id", "WL-0001"])
     out = capsys.readouterr().out
     assert "the mistake" in out and "understood" in out
+
+
+# -- check --fix ---------------------------------------------------------------
+
+
+def test_check_fix_rewrites_a_typo_and_reports_it(repo, home, capsys):
+    (repo / "app" / "bad.py").write_text(
+        "from app.engine import Enginee\n", encoding="utf-8"
+    )
+    code = main(["check", "--root", str(repo), "--no-record", "--fix"])
+    out = capsys.readouterr().out
+    assert "1 file(s) changed, 1 edit(s) applied" in out
+    assert "fixed" in out
+    assert code == EXIT_OK
+    assert (repo / "app" / "bad.py").read_text(encoding="utf-8") == (
+        "from app.engine import Engine\n"
+    )
+
+
+def test_check_without_fix_leaves_the_file_untouched(repo, home, capsys):
+    (repo / "app" / "bad.py").write_text(
+        "from app.engine import Enginee\n", encoding="utf-8"
+    )
+    main(["check", "--root", str(repo), "--no-record"])
+    assert (repo / "app" / "bad.py").read_text(encoding="utf-8") == (
+        "from app.engine import Enginee\n"
+    )
+
+
+def test_check_fix_reports_json_summary(repo, home, capsys):
+    (repo / "app" / "bad.py").write_text(
+        "from app.engine import Enginee\n", encoding="utf-8"
+    )
+    main(["--json", "check", "--root", str(repo), "--no-record", "--fix"])
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["fix"]["edit_count"] == 1
+    assert payload["ok"] is True
+
+
+def test_check_fix_on_an_unfixable_finding_still_reports_it(repo, home, capsys):
+    (repo / "app" / "bad.py").write_text(
+        "from app.engine import totally_unrelated_nonexistent_name\n", encoding="utf-8"
+    )
+    code = main(["check", "--root", str(repo), "--no-record", "--fix"])
+    out = capsys.readouterr().out
+    assert "0 edit(s) applied" in out
+    assert code == EXIT_BLOCKED

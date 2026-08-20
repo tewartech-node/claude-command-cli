@@ -22,10 +22,11 @@ import sys
 from pathlib import Path
 from typing import List, Optional
 
+from .autofix import apply_fixes
 from .inspector import Inspector
 from .ledger import writable_ledger
 from .preflight import changed_files, preflight
-from .rules import RULES, SEVERITY_ORDER
+from .rules import RULES, SEVERITY_ORDER, run_rules
 from .seed import OPEN_LESSONS, seed
 
 EXIT_OK, EXIT_BLOCKED, EXIT_ERROR = 0, 1, 2
@@ -72,13 +73,38 @@ def _print_findings(findings: List[dict]) -> None:
 def cmd_check(args: argparse.Namespace) -> int:
     root = _repo_root(args.root)
     paths = [Path(p).resolve() for p in args.paths] if args.paths else None
+
+    fix_summary = None
+    if args.fix:
+        inspector = Inspector(root)
+        findings = run_rules(inspector, paths, only=args.rule)
+        fix_summary = apply_fixes(findings, root)
+
+    # Re-run after any fix so the report reflects the tree as it now stands
+    # -- including findings a fix could not resolve (no confident rename
+    # available) and any the fix itself introduced, which should never
+    # happen but is exactly the kind of claim this tool insists on proving
+    # rather than assuming.
     verdict = preflight(root, paths=paths, record=not args.no_record, only=args.rule)
+
     if args.json:
-        print(json.dumps(verdict, indent=2))
+        payload = dict(verdict)
+        if fix_summary is not None:
+            payload["fix"] = fix_summary
+        print(json.dumps(payload, indent=2))
         return EXIT_OK if verdict["ok"] else EXIT_BLOCKED
 
+    if fix_summary is not None:
+        print(f"\ncurriculum --fix -- {len(fix_summary['files_changed'])} file(s) changed, "
+              f"{fix_summary['edit_count']} edit(s) applied\n")
+        for line in fix_summary["edits_applied"]:
+            print(_paint(f"  fixed  {line}", "32"))
+        for entry in fix_summary["skipped"]:
+            print(_paint(f"  skipped  {entry['path']}: {entry['reason']}", "33"))
+        print()
+
     counts = verdict["counts"]
-    print(f"\ncurriculum check -- {verdict['files_examined']} files ({verdict['scope']})\n")
+    print(f"curriculum check -- {verdict['files_examined']} files ({verdict['scope']})\n")
     _print_findings(verdict["findings"])
     print()
     if verdict["newly_recorded"]:
@@ -265,6 +291,11 @@ def build_parser() -> argparse.ArgumentParser:
     check.add_argument("--root", help="repository root")
     check.add_argument("--rule", action="append", help="limit to specific rule ids")
     check.add_argument("--no-record", action="store_true", help="do not append findings to the ledger")
+    check.add_argument(
+        "--fix", action="store_true",
+        help="apply high-confidence renames (R001/R002) before reporting; "
+             "an edit is applied only when exactly one candidate clearly matches",
+    )
     check.set_defaults(func=cmd_check)
 
     pre = sub.add_parser("preflight", help="check only files changed against HEAD")
