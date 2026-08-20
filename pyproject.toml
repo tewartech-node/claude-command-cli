@@ -27,8 +27,14 @@ packages = [
     "warnetech_ai_controller",
     "warnetech_connectors",
     "warnetech_cli",
+    "warnetech_curriculum",
     "supabase_schema"
 ]
+
+[project.scripts]
+# Parameter-free preflight + failure ledger. Stdlib only, so this works on a
+# Termux install with no network and no build toolchain.
+warnetech-curriculum = "warnetech_curriculum.cli:main"
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
