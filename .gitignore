@@ -33,6 +33,10 @@ build/
 # Testing
 coverage/
 .nyc_output/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
 
 # Temporary
 *.tmp
