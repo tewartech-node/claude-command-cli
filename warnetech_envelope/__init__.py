@@ -23,6 +23,31 @@ NOTE ON THE ITERATION COUNT: 100_000 is deliberately NOT the 480_000 used by
 warnetech_cli.security.SecurityManager. That module is a separate, unwired
 local-storage path (see its docstring); this one must match the JavaScript
 implementations byte for byte, and raising it here would break them.
+
+ARCHIVE FORMAT (seal_archive / unseal_archive)
+    version(1) || salt(16) || iv(12) || tag(16) || ciphertext
+
+A second, deliberately different sealing mode, for a different threat model:
+long-term storage (e.g. an offsite backup) protected by a human-chosen
+passphrase rather than a per-session API key. It is *not* a second crypto
+implementation — see CLAUDE.md's "never add a second implementation" rule —
+it is this module's existing AES-256-GCM primitive (`aes_gcm_encrypt`), used
+with parameters that fit its own threat model instead of the CLI/Worker
+channel's:
+
+  * RANDOM per-object salt, not the fixed PBKDF2_SALT above. The channel's
+    fixed salt is safe there because the derived key is single-purpose and
+    the "password" is a high-entropy API key; reusing one salt across many
+    objects protected by the same *human* passphrase would mean a single
+    cracked salt/passphrase pair unlocks every object ever sealed with it.
+  * A VERSION byte prefixes the blob. The channel envelope has no such byte
+    because both ends are always running matched code from this repository;
+    an archive can outlive the code that wrote it, so unseal_archive() can
+    refuse a blob from a future format instead of misreading it.
+  * ARCHIVE_PBKDF2_ITERATIONS (600_000) is higher than the channel's 100_000:
+    OWASP's current PBKDF2-HMAC-SHA256 guidance, appropriate for a
+    passphrase an attacker can attempt offline indefinitely against a stolen
+    blob, as opposed to a live, rate-limitable network channel.
 """
 
 from __future__ import annotations
@@ -50,6 +75,13 @@ __all__ = [
     "seal",
     "unseal",
     "is_envelope",
+    "ARCHIVE_VERSION",
+    "ARCHIVE_SALT_LENGTH",
+    "ARCHIVE_PBKDF2_ITERATIONS",
+    "ARCHIVE_MIN_PASSPHRASE_LENGTH",
+    "derive_archive_key",
+    "seal_archive",
+    "unseal_archive",
 ]
 
 IV_LENGTH = 12
@@ -57,6 +89,14 @@ TAG_LENGTH = 16
 KEY_LENGTH = 32
 PBKDF2_ITERATIONS = 100_000
 PBKDF2_SALT = b"claude-command-cli"
+
+# -- archive sealing (passphrase-protected, long-term storage) --------------
+
+ARCHIVE_VERSION = 1
+ARCHIVE_SALT_LENGTH = 16
+ARCHIVE_PBKDF2_ITERATIONS = 600_000
+ARCHIVE_MIN_PASSPHRASE_LENGTH = 12
+_ARCHIVE_HEADER_LENGTH = 1 + ARCHIVE_SALT_LENGTH + IV_LENGTH + TAG_LENGTH
 
 
 class EnvelopeError(RuntimeError):
@@ -172,3 +212,65 @@ def unseal(envelope: dict, api_key: str) -> Any:
 
 def is_envelope(body: Any) -> bool:
     return isinstance(body, dict) and isinstance(body.get("encrypted_data"), str)
+
+
+def derive_archive_key(passphrase: str, salt: bytes) -> bytes:
+    """Derive a 256-bit key for archive sealing. See the ARCHIVE FORMAT note
+    at the top of this module for why the salt is random per call rather
+    than the channel envelope's fixed PBKDF2_SALT."""
+    return hashlib.pbkdf2_hmac(
+        "sha256", passphrase.encode("utf-8"), salt, ARCHIVE_PBKDF2_ITERATIONS, dklen=KEY_LENGTH
+    )
+
+
+def seal_archive(plaintext: bytes, passphrase: str, associated_data: bytes | None = None) -> bytes:
+    """Seal raw bytes for long-term, passphrase-protected storage.
+
+    `associated_data` should bind the ciphertext to where it will live (e.g.
+    b"bucket/key") when the caller can supply one. AES-GCM authenticates but
+    does not otherwise "know" where a blob is stored, so without this an
+    attacker with write access to the store can swap two ciphertexts sealed
+    under the same passphrase and both will still decrypt -- just as the
+    wrong object. Binding the location closes that.
+    """
+    if len(passphrase) < ARCHIVE_MIN_PASSPHRASE_LENGTH:
+        raise EnvelopeError(
+            f"passphrase must be at least {ARCHIVE_MIN_PASSPHRASE_LENGTH} characters"
+        )
+    salt = os.urandom(ARCHIVE_SALT_LENGTH)
+    key = derive_archive_key(passphrase, salt)
+    nonce, ct_with_tag = aes_gcm_encrypt(key, plaintext, associated_data)
+    # cryptography's AESGCM appends the tag to the ciphertext; split it out
+    # so the on-disk layout documented above (tag before ciphertext) holds.
+    ciphertext, tag = ct_with_tag[:-TAG_LENGTH], ct_with_tag[-TAG_LENGTH:]
+    return bytes([ARCHIVE_VERSION]) + salt + nonce + tag + ciphertext
+
+
+def unseal_archive(blob: bytes, passphrase: str, associated_data: bytes | None = None) -> bytes:
+    """Reverse of :func:`seal_archive`. Raises EnvelopeError on any failure,
+    including a bad passphrase, a truncated blob, or an unrecognised version
+    byte -- an archive is expected to outlive the code that wrote it, so a
+    future format is reported rather than misread."""
+    if len(blob) < _ARCHIVE_HEADER_LENGTH:
+        raise EnvelopeError("archive too short to contain a header")
+
+    version = blob[0]
+    if version != ARCHIVE_VERSION:
+        raise EnvelopeError(
+            f"unsupported archive version {version}; this build understands version {ARCHIVE_VERSION}"
+        )
+
+    offset = 1
+    salt = blob[offset:offset + ARCHIVE_SALT_LENGTH]
+    offset += ARCHIVE_SALT_LENGTH
+    nonce = blob[offset:offset + IV_LENGTH]
+    offset += IV_LENGTH
+    tag = blob[offset:offset + TAG_LENGTH]
+    offset += TAG_LENGTH
+    ciphertext = blob[offset:]
+
+    key = derive_archive_key(passphrase, salt)
+    try:
+        return aes_gcm_decrypt(key, nonce, ciphertext + tag, associated_data)
+    except Exception as exc:
+        raise EnvelopeError(f"archive decryption failed: {exc}") from exc

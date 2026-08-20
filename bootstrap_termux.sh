@@ -45,14 +45,32 @@ PY_OK=1; JS_OK=1
 python -m pytest -q || PY_OK=0
 npm test || JS_OK=0
 
-echo "[8] Verifying the encryption path..."
-python - <<'PYCHECK' || echo "    WARNING: envelope unavailable — check the cryptography install"
-from warnetech_envelope import decrypt_data, encrypt_data
-assert decrypt_data(encrypt_data("bootstrap", "k"), "k") == "bootstrap"
-print("    envelope round-trip OK")
-PYCHECK
+echo "[8] Installing the curriculum (parameter-free preflight + failure ledger)..."
+warnetech-curriculum seed
+./scripts/install-curriculum-hook.sh
 
-echo "[9] Bootstrap complete."
+echo "[9] Installing shell tab-completion..."
+COMPLETION_LINE="source \"$REPO_DIR/scripts/completions/warnetech.bash\""
+BASHRC="$HOME/.bashrc"
+if ! grep -qF "$COMPLETION_LINE" "$BASHRC" 2>/dev/null; then
+    echo "$COMPLETION_LINE" >> "$BASHRC"
+    echo "    added to $BASHRC (source it now with: source $BASHRC)"
+else
+    echo "    already installed in $BASHRC"
+fi
+
+echo "[10] Running the environment doctor..."
+DOCTOR_OK=1
+warnetech-doctor || DOCTOR_OK=0
+
+echo
+echo "[11] Bootstrap complete."
 [ "$PY_OK" = 1 ] || echo "    Python tests FAILED"
 [ "$JS_OK" = 1 ] || echo "    JS tests FAILED"
-[ "$PY_OK" = 1 ] && [ "$JS_OK" = 1 ] && echo "    All tests passed."
+[ "$DOCTOR_OK" = 1 ] || echo "    warnetech-doctor found problems -- see above"
+# Chained under `set -e`, this line's own exit status would be non-zero (and
+# abort the script before the final "Try:" line below) whenever any check
+# failed -- `|| true` makes it purely informational, matching PY_OK/JS_OK's
+# own `|| VAR=0` treatment above.
+{ [ "$PY_OK" = 1 ] && [ "$JS_OK" = 1 ] && [ "$DOCTOR_OK" = 1 ] && echo "    All checks passed."; } || true
+echo "    Try: warnetech --help | warnetech-curriculum curriculum | warnetech-doctor"

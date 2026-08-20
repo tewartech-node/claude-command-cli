@@ -32,6 +32,13 @@ Layer 2b: Cloudflare Worker (LEGACY — test harness only)
 ├── Do not add features here; add them to warnetech-server
 └── See "Cloudflare status" below
 
+Layer 0: warnetech_curriculum (CROSS-CUTTING)
+├── Append-only, hash-chained failure ledger (never deletes)
+├── Deterministic preflight rules (ast-based, parameter-free)
+├── Pre-installed lessons seeded from this repo's real history
+├── Gates commits (git hook) and pull requests (CI ratchet)
+└── See docs/10_CURRICULUM.md
+
 Layer 3: GitHub Repository
 ├── Stores CLI scripts & executables
 ├── Stores server code + legacy Worker harness
@@ -48,6 +55,24 @@ Layer 2 is `warnetech-server`, per
 `docs/AI-FIREWALL-COMPLETE-REFERENCE.txt`, which lists the system as
 relying only on warnetech-server, warnetech-control-plane,
 warnetech-project-supabase, warnetech-backups and warnetech-cli.
+
+**Backups**: `warnetech_operator/warnetech_backup_recall.py` is this repo's
+local implementation — local backup/recall, plus an *optional*, client-side
+encrypted offsite tier on S3 (`push-s3` / `pull-s3`, behind the `s3` extra).
+Sealing goes through `warnetech_envelope.seal_archive()`, the same canonical
+envelope extended with a passphrase-protected mode for long-term storage —
+not a second crypto implementation. Full detail, including exactly what the
+encryption does and does not protect against, in
+`docs/11_BACKUP_AND_RECOVERY.md`.
+
+**Interface**: four console scripts — `warnetech`, `warnetech-curriculum`,
+`warnetech-backup-recall`, `warnetech-doctor` — installed by `pip install -e
+.`. Run `warnetech-doctor` first on a new machine (Termux especially:
+`cryptography` needs `rust`+`binutils` on PATH to build there, and doctor
+names that fix directly rather than surfacing it as a raw traceback).
+`warnetech-curriculum check --fix` auto-corrects high-confidence typos
+(never API-shape guesses — see `docs/10_CURRICULUM.md`). Full detail in
+`docs/12_TERMUX_INTERFACE.md`.
 
 `worker/` and `warnetech_cli_legacy/` are **legacy test harness**. They
 still build and their tests still pass, so they are kept for regression
@@ -72,6 +97,51 @@ coverage of the wire format, but:
 
 The canonical CLI is `warnetech_cli/` (Python), talking to
 `warnetech-server` over the `warnetech_envelope` AES-256-GCM channel.
+
+## The Curriculum (read this before writing code)
+
+`warnetech_curriculum/` is the system's institutional memory. It is
+parameter-free by construction -- standard library only, no model, no API
+key, no network -- so it runs offline on Termux and gives the same verdict
+everywhere. Full detail in `docs/10_CURRICULUM.md`.
+
+**Before writing code that calls into another module, verify the API
+exists. Do not infer it from the name.**
+
+```bash
+warnetech-curriculum preflight    # gate: only what changed
+warnetech-curriculum check        # whole tree
+warnetech-curriculum curriculum   # what has been learned, and what is still open
+```
+
+This exists because `warnetech_ai_controller/diagnostics.py` was written
+against an imagined API -- `from warnetech_envelope import open` (the export
+is `unseal`), `RetentionEngine().slices`, `GhostEngine().reconstruct()`,
+`supabase_schema.database` -- and every one of those was provable in
+milliseconds by parsing the source. The module shipped, reported success,
+and was broken in all eight of its checks.
+
+Rules currently enforced: **R001** imports must resolve, **R002** attributes
+must exist on the class, **R003** failures must stay visible, **R004** a
+guard must be able to fail, **R005** declared surface must be reachable.
+
+### Rules for working with it
+
+- **Never delete a ledger entry.** The ledger is append-only and
+  hash-chained; deletion breaks the chain and is reported by `verify`.
+  Correct the record by appending: `warnetech-curriculum resolve <id> "..."`.
+  The original stays readable. This is not a convention, it is enforced --
+  `Ledger` has no delete, update, or compact method, and a test asserts it
+  never grows one.
+- **Record failures as they happen**: `warnetech-curriculum learn "..."`.
+  A failure that is only fixed teaches nothing; a failure that is recorded
+  becomes a rule.
+- **Adding a rule is two steps, in order**: record the evidence, then write
+  the check with an `origin` pointing at it. Give every rule two tests --
+  one proving it fires, one proving it stays silent on correct code. The
+  second matters more.
+- **Do not suppress a finding to get to green.** Fix it, or record the
+  deliberate exception with a stated reason (`# noqa: BLE001 - <why>`).
 
 ## Principles
 

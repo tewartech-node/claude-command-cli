@@ -14,6 +14,32 @@ from warnetech_cli.commands import Commands
 from warnetech_cli.logging import setup_logging, log_operation
 
 
+def error_hint(exc: Exception) -> Optional[str]:
+    """A short, actionable next step for a common failure, or None.
+
+    Deliberately narrow: this recognises specific, previously-seen failure
+    shapes (a missing optional dependency, an unreachable server) rather
+    than trying to explain every possible exception. A wrong guess at
+    "what you should do" is worse than no guess -- see `error=str(exc)`
+    below, which always carries the real message regardless of whether a
+    hint is found.
+    """
+    text = str(exc)
+    if isinstance(exc, ModuleNotFoundError) or "No module named" in text:
+        return (
+            "a required package is missing. Run `warnetech-doctor` to see exactly "
+            "which one, or `pip install -e '.[dev]'` to install the base set."
+        )
+    if isinstance(exc, (ConnectionError, ConnectionRefusedError, TimeoutError)):
+        return (
+            "could not reach warnetech-server. Check `server_url` in your config "
+            "and that the server is running, or run `warnetech server-ping`."
+        )
+    if isinstance(exc, FileNotFoundError):
+        return f"a required file was not found: {text}"
+    return None
+
+
 def create_parser() -> argparse.ArgumentParser:
     """Create argument parser for warnetech CLI."""
     parser = argparse.ArgumentParser(
@@ -266,6 +292,11 @@ def main(argv: Optional[list] = None) -> int:
             0,
             error=str(e),
         )
+        hint = error_hint(e)
+        if hint:
+            print(f"error: {e}\n  -> {hint}", file=sys.stderr)
+        else:
+            print(f"error: {e}", file=sys.stderr)
         return 1
 
 
