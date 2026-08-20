@@ -14,10 +14,13 @@ repository directory.
 from __future__ import annotations
 
 import argparse
+import getpass
 import hashlib
+import io
 import json
 import shutil
 import sys
+import tarfile
 import time
 from pathlib import Path
 from typing import Optional
@@ -216,6 +219,151 @@ def recall_backup(backup_name: str, dry_run: bool = False) -> dict:
     return {"dry_run": False, "backup": backup_name, "restored": planned}
 
 
+# -- offsite tier (S3, client-side encrypted) --------------------------------
+#
+# A local backup (above) protects against losing this machine's runtime
+# state; it does nothing if the machine itself is lost, stolen, or its disk
+# fails. This tier adds an encrypted offsite copy of one local backup,
+# reusing that backup's own manifest and checksums rather than inventing a
+# second notion of what "one backup" contains.
+#
+# Sealing happens via warnetech_envelope.seal_archive() -- the passphrase-
+# protected mode of the canonical envelope -- before anything reaches the
+# network. warnetech_connectors.s3_backup then talks to AWS with the sealed
+# bytes only; it never sees the passphrase's plaintext target or handles the
+# key itself. See CLAUDE.md: encryption extends warnetech_envelope, it does
+# not get reimplemented here.
+
+
+def _s3_backup_module():
+    """Import warnetech_connectors.s3_backup lazily and on demand, so a
+    machine with no `s3` extra installed can still use every local backup
+    command above without hitting an ImportError at module load time."""
+    from warnetech_connectors import s3_backup
+
+    return s3_backup
+
+
+def _s3_object_key(backup_name: str) -> str:
+    return f"{backup_name}.tar"
+
+
+def _archive_backup_to_bytes(backup_path: Path) -> bytes:
+    buffer = io.BytesIO()
+    with tarfile.open(fileobj=buffer, mode="w") as archive:
+        archive.add(backup_path, arcname=backup_path.name)
+    return buffer.getvalue()
+
+
+def _safe_extract(archive: tarfile.TarFile, destination: Path) -> None:
+    """Extract every member of `archive` under `destination`, refusing
+    anything that would land outside it.
+
+    tarfile.extractall() does not do this by default on every supported
+    Python version here (the protective `filter` argument is 3.12+); a
+    crafted archive with a `../../etc/cron.d/x` member, or a symlink member
+    pointing outside the tree, can otherwise write anywhere the process can.
+    A backup fetched from S3 is data from the network -- it does not get to
+    be trusted just because it round-tripped through this module's own
+    upload path once.
+    """
+    destination = destination.resolve()
+    for member in archive.getmembers():
+        if member.issym() or member.islnk():
+            raise ValueError(f"refusing to extract link member: {member.name}")
+        target = (destination / member.name).resolve()
+        if target != destination and destination not in target.parents:
+            raise ValueError(f"refusing to extract member outside the target directory: {member.name}")
+    archive.extractall(destination)
+
+
+def push_to_s3(
+    backup_name: str, bucket: str, passphrase: str, region: Optional[str] = None
+) -> dict:
+    """Seal one local backup and upload it as a single object.
+
+    Raises ValueError for a bad backup_name (mirrors recall_backup's
+    contract); returns the connector's own {"ok": ...} dict for every
+    network-reachable failure, since those are expected and recoverable,
+    not programmer errors.
+    """
+    backup_path = _resolve_backup(backup_name)
+    if not backup_path.exists():
+        raise ValueError(f"Backup not found: {backup_name}")
+
+    s3_backup = _s3_backup_module()
+    setup = s3_backup.ensure_bucket(bucket, region=region)
+    if not setup.get("ok"):
+        return setup
+
+    data = _archive_backup_to_bytes(backup_path)
+    result = s3_backup.upload_backup(bucket, _s3_object_key(backup_name), data, passphrase, region=region)
+
+    if result.get("ok"):
+        state = load_state()
+        state["last_s3_push"] = {"backup": backup_name, "bucket": bucket, "at": int(time.time())}
+        save_state(state)
+        log(f"Backup pushed to S3: {backup_name} -> s3://{bucket}/{_s3_object_key(backup_name)}")
+    else:
+        log(f"S3 push failed for {backup_name}: {result.get('error')}")
+
+    return result
+
+
+def pull_from_s3(
+    backup_name: str, bucket: str, passphrase: str, region: Optional[str] = None
+) -> dict:
+    """Download and unseal one backup from S3, extract it under BACKUP_DIR,
+    then re-verify its checksums against the manifest it was created with --
+    the AEAD tag already guarantees the sealed bytes were not tampered with
+    in transit or at rest, but this also catches a defect anywhere in the
+    tar/extract path itself, not only in the network leg.
+    """
+    s3_backup = _s3_backup_module()
+    fetched = s3_backup.download_backup(bucket, _s3_object_key(backup_name), passphrase, region=region)
+    if not fetched.get("ok"):
+        log(f"S3 pull failed for {backup_name}: {fetched.get('error')}")
+        return fetched
+
+    destination = _resolve_backup(backup_name)
+    if destination.exists():
+        raise ValueError(
+            f"a local backup named {backup_name} already exists; "
+            "remove it first or pull under a different name"
+        )
+    destination.parent.mkdir(parents=True, exist_ok=True)
+
+    with tarfile.open(fileobj=io.BytesIO(fetched["data"]), mode="r") as archive:
+        _safe_extract(archive, destination.parent)
+
+    verification = verify_backup(backup_name)
+    state = load_state()
+    state["last_s3_pull"] = {"backup": backup_name, "bucket": bucket, "at": int(time.time())}
+    save_state(state)
+    log(f"Backup pulled from S3: {backup_name} <- s3://{bucket}/{_s3_object_key(backup_name)} "
+        f"(checksums {'ok' if verification['all_ok'] else 'MISMATCH'})")
+
+    return {"ok": verification["all_ok"], "backup": backup_name, "verification": verification}
+
+
+def _prompt_passphrase(confirm: bool) -> str:
+    """Reads a passphrase from the terminal without echoing it.
+
+    `confirm=True` (writes -- pushing a new object) asks twice and refuses
+    to proceed on a mismatch, so a typo does not silently seal a backup
+    under a key nobody actually knows. `confirm=False` (reads) asks once,
+    since a wrong read passphrase merely fails to decrypt -- it does not
+    destroy anything.
+    """
+    first = getpass.getpass("S3 backup passphrase: ")
+    if not confirm:
+        return first
+    second = getpass.getpass("Confirm passphrase: ")
+    if first != second:
+        raise ValueError("passphrases did not match")
+    return first
+
+
 # -- CLI --------------------------------------------------------------------
 
 
@@ -237,6 +385,16 @@ def main(argv: Optional[list[str]] = None) -> int:
     recall.add_argument(
         "--yes", action="store_true", help="skip the confirmation prompt"
     )
+
+    push = sub.add_parser("push-s3", help="seal a local backup and upload it offsite")
+    push.add_argument("name")
+    push.add_argument("--bucket", required=True, help="S3 bucket (must already exist or be creatable)")
+    push.add_argument("--region", default=None)
+
+    pull = sub.add_parser("pull-s3", help="download and unseal a backup from S3")
+    pull.add_argument("name")
+    pull.add_argument("--bucket", required=True)
+    pull.add_argument("--region", default=None)
 
     args = parser.parse_args(argv)
 
@@ -269,6 +427,21 @@ def main(argv: Optional[list[str]] = None) -> int:
         recall_backup(args.name)
         print("Backup recalled.")
         return 0
+
+    if args.command == "push-s3":
+        passphrase = _prompt_passphrase(confirm=True)
+        result = push_to_s3(args.name, args.bucket, passphrase, region=args.region)
+        print(json.dumps({k: v for k, v in result.items() if k != "data"}, indent=2))
+        # Unlike the standalone script this replaces, a failed push must
+        # exit non-zero -- a backup tool that reports success on failure is
+        # worse than no backup tool.
+        return 0 if result.get("ok") else 1
+
+    if args.command == "pull-s3":
+        passphrase = _prompt_passphrase(confirm=False)
+        result = pull_from_s3(args.name, args.bucket, passphrase, region=args.region)
+        print(json.dumps({k: v for k, v in result.items() if k != "data"}, indent=2))
+        return 0 if result.get("ok") else 1
 
     return 1
 

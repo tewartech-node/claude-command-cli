@@ -56,6 +56,15 @@ Layer 2 is `warnetech-server`, per
 relying only on warnetech-server, warnetech-control-plane,
 warnetech-project-supabase, warnetech-backups and warnetech-cli.
 
+**Backups**: `warnetech_operator/warnetech_backup_recall.py` is this repo's
+local implementation — local backup/recall, plus an *optional*, client-side
+encrypted offsite tier on S3 (`push-s3` / `pull-s3`, behind the `s3` extra).
+Sealing goes through `warnetech_envelope.seal_archive()`, the same canonical
+envelope extended with a passphrase-protected mode for long-term storage —
+not a second crypto implementation. Full detail, including exactly what the
+encryption does and does not protect against, in
+`docs/11_BACKUP_AND_RECOVERY.md`.
+
 `worker/` and `warnetech_cli_legacy/` are **legacy test harness**. They
 still build and their tests still pass, so they are kept for regression
 coverage of the wire format, but:
